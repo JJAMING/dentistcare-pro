@@ -18,7 +18,10 @@ import {
   Clipboard,
   ClipboardList,
   MapPin,
-  Edit3
+  Edit3,
+  Settings,
+  X,
+  UserCheck
 } from 'lucide-react';
 import { Patient, Treatment } from '../types';
 import { storageService } from '../services/storageService';
@@ -55,6 +58,9 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
   });
 
   const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const [doctors, setDoctors] = useState<string[]>(storageService.getDoctors());
+  const [isDoctorModalOpen, setIsDoctorModalOpen] = useState(false);
+  const [newDoctorName, setNewDoctorName] = useState('');
 
   useEffect(() => {
     if (!isNew && id) {
@@ -158,7 +164,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
       id: crypto.randomUUID(),
       date: new Date().toISOString().split('T')[0],
       content: '',
-      doctor: '대표원장',
+      doctor: doctors[0] || '의사미지정',
       estimatedAmount: '',
       isAgreed: undefined
     };
@@ -173,6 +179,24 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
       t.id === tid ? { ...t, [field]: value } : t
     );
     setPatient({ ...patient, treatments: newTreatments });
+  };
+
+  const addDoctor = () => {
+    if (!newDoctorName.trim()) return;
+    if (doctors.includes(newDoctorName.trim())) {
+      alert('이미 등록된 이름입니다.');
+      return;
+    }
+    const updatedDoctors = [...doctors, newDoctorName.trim()];
+    setDoctors(updatedDoctors);
+    storageService.saveDoctors(updatedDoctors);
+    setNewDoctorName('');
+  };
+
+  const removeDoctor = (name: string) => {
+    const updatedDoctors = doctors.filter(d => d !== name);
+    setDoctors(updatedDoctors);
+    storageService.saveDoctors(updatedDoctors);
   };
 
   const age = calculateAge(patient.birthDate);
@@ -397,13 +421,22 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold text-slate-800">진료 내역 ({patient.treatments.length})</h3>
-            <button 
-              onClick={addTreatment}
-              className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-black transition-all shadow-lg shadow-slate-200"
-            >
-              <Plus className="w-4 h-4" />
-              신규 진료 입력
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setIsDoctorModalOpen(true)}
+                className="p-2.5 bg-white border border-slate-200 text-slate-500 rounded-xl hover:bg-slate-50 transition-all shadow-sm group"
+                title="원장 목록 관리"
+              >
+                <Settings className="w-4 h-4 group-hover:rotate-45 transition-transform" />
+              </button>
+              <button 
+                onClick={addTreatment}
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-black transition-all shadow-lg shadow-slate-200"
+              >
+                <Plus className="w-4 h-4" />
+                신규 진료 입력
+              </button>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -419,13 +452,14 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
                       onChange={e => updateTreatment(t.id, 'date', e.target.value)}
                     />
                     <select 
-                      className="bg-slate-50 border-none text-slate-500 text-xs font-bold outline-none rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-100"
+                      className="bg-slate-50 border-none text-slate-500 text-xs font-bold outline-none rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-100 min-w-[100px]"
                       value={t.doctor}
                       onChange={e => updateTreatment(t.id, 'doctor', e.target.value)}
                     >
-                      <option>대표원장</option>
-                      <option>부원장1</option>
-                      <option>교정원장</option>
+                      {doctors.map(doc => (
+                        <option key={doc} value={doc}>{doc}</option>
+                      ))}
+                      {doctors.length === 0 && <option value="의사미지정">의사미지정</option>}
                     </select>
                   </div>
                   <button 
@@ -433,7 +467,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
                       const newTreatments = patient.treatments.filter(item => item.id !== t.id);
                       setPatient({...patient, treatments: newTreatments});
                     }}
-                    className="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 rounded-lg"
+                    className="p-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 rounded-lg"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -506,6 +540,73 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
           </div>
         </div>
       </div>
+
+      {/* 원장 관리 모달 */}
+      {isDoctorModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="bg-slate-900 p-2 rounded-xl shadow-lg">
+                  <UserCheck className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-lg font-black text-slate-900">원장 목록 관리</h3>
+              </div>
+              <button 
+                onClick={() => setIsDoctorModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-900 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  placeholder="추가할 원장명" 
+                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  value={newDoctorName}
+                  onChange={e => setNewDoctorName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addDoctor()}
+                />
+                <button 
+                  onClick={addDoctor}
+                  className="bg-blue-600 text-white p-2 rounded-xl shadow-md shadow-blue-100 hover:bg-blue-700 transition-all"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                {doctors.map(doc => (
+                  <div key={doc} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 group">
+                    <span className="text-sm font-bold text-slate-700">{doc}</span>
+                    <button 
+                      onClick={() => removeDoctor(doc)}
+                      className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {doctors.length === 0 && (
+                  <p className="text-center py-8 text-slate-400 text-xs font-medium">등록된 원장이 없습니다.</p>
+                )}
+              </div>
+            </div>
+            
+            <div className="p-6 bg-slate-50 border-t border-slate-100">
+              <button 
+                onClick={() => setIsDoctorModalOpen(false)}
+                className="w-full py-3 bg-slate-900 text-white rounded-xl font-black text-sm hover:bg-black transition-all"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
