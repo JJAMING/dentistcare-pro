@@ -9,9 +9,11 @@ export const excelService = {
       '이름': p.name,
       '연락처': p.phone,
       '생년월일': p.birthDate,
+      '내원경로': p.visitPath || '',
+      '상세내원경로': p.visitPathDetail || '', // 상세 내원 경로 추가
       '최근방문일': p.lastVisit,
       '다음리콜일': p.nextRecallDate,
-      '예약내용': p.nextRecallContent, // Added field
+      '예약내용': p.nextRecallContent,
       '진료내역개수': p.treatments.length
     }));
 
@@ -37,9 +39,11 @@ export const excelService = {
             name: String(row['이름'] || ''),
             phone: String(row['연락처'] || ''),
             birthDate: String(row['생년월일'] || ''),
+            visitPath: String(row['내원경로'] || ''),
+            visitPathDetail: String(row['상세내원경로'] || ''), // 상세 내원 경로 임포트 추가
             lastVisit: String(row['최근방문일'] || new Date().toISOString().split('T')[0]),
             nextRecallDate: String(row['다음리콜일'] || ''),
-            nextRecallContent: String(row['예약내용'] || ''), // Added field
+            nextRecallContent: String(row['예약내용'] || ''),
             treatments: [],
             status: 'active' as const
           }));
