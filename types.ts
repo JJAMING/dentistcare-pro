@@ -24,11 +24,13 @@ export interface Patient {
   name: string;
   phone: string;
   birthDate: string;
-  gender?: '남' | '여'; // 성별 필드 추가
+  gender?: '남' | '여';
   registrationDate: string; 
   lastVisit: string;
   nextRecallDate: string;
   nextRecallContent: string; 
+  visitPath?: string;
+  visitPathDetail?: string; // 상세 내원 경로 필드 추가
   treatments: Treatment[];
   status: 'active' | 'inactive';
   completedRecallDates: string[]; 
