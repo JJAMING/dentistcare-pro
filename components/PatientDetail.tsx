@@ -7,20 +7,18 @@ import {
   Trash2, 
   Plus, 
   Calendar, 
-  Sparkles, 
   User, 
   Phone, 
-  Zap, 
   MessageSquare, 
   Wallet, 
   ThumbsUp, 
   ThumbsDown, 
   CheckCircle2, 
-  Image as ImageIcon, 
   Loader2, 
   Clipboard,
   ClipboardList,
-  X
+  MapPin,
+  Edit3
 } from 'lucide-react';
 import { Patient, Treatment } from '../types';
 import { storageService } from '../services/storageService';
@@ -29,6 +27,8 @@ import { geminiService } from '../services/geminiService';
 interface PatientDetailProps {
   onRefresh: () => void;
 }
+
+const VISIT_PATHS = ['업체', '아파트', '소개', '가족', '단체 및 협회', '기타'];
 
 const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
   const { id } = useParams<{ id: string }>();
@@ -47,14 +47,13 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
     lastVisit: new Date().toISOString().split('T')[0],
     nextRecallDate: '',
     nextRecallContent: '',
+    visitPath: '',
+    visitPathDetail: '',
     treatments: [],
     status: 'active',
     completedRecallDates: []
   });
 
-  const [quickEntry, setQuickEntry] = useState('');
-  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isOcrLoading, setIsOcrLoading] = useState(false);
 
   useEffect(() => {
@@ -69,14 +68,11 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
     }
   }, [id, isNew]);
 
-  // 클립보드 붙여넣기 감지
   useEffect(() => {
     if (!isNew) return;
-
     const handlePaste = async (event: ClipboardEvent) => {
       const items = event.clipboardData?.items;
       if (!items) return;
-
       for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
@@ -87,7 +83,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
         }
       }
     };
-
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
   }, [isNew]);
@@ -98,7 +93,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
     reader.onload = async () => {
       const base64 = (reader.result as string).split(',')[1];
       const result = await geminiService.extractPatientInfoFromImage(base64, file.type);
-      
       if (result) {
         setPatient(prev => ({
           ...prev,
@@ -181,17 +175,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
     setPatient({ ...patient, treatments: newTreatments });
   };
 
-  const runAiAnalysis = async () => {
-    if (patient.treatments.length === 0) {
-      alert('분석할 진료 내역이 없습니다.');
-      return;
-    }
-    setIsAnalyzing(true);
-    const result = await geminiService.analyzePatientStatus(patient);
-    setAiAnalysis(result);
-    setIsAnalyzing(false);
-  };
-
   const age = calculateAge(patient.birthDate);
 
   return (
@@ -226,7 +209,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-6">
-          {/* 환자 기본 정보 카드 */}
           <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
             <div className="flex flex-col items-center text-center space-y-2 relative">
               <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 relative overflow-hidden ring-4 ring-slate-50">
@@ -255,7 +237,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
                 </div>
               </div>
 
-              {/* 이미지 분석 콤팩트 레이아웃 */}
               {isNew && (
                 <div className="w-full mt-4 p-3 bg-indigo-50/50 border border-dashed border-indigo-200 rounded-xl group hover:border-indigo-400 transition-all">
                   <input 
@@ -327,6 +308,39 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
               </div>
 
               <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">내원경로</label>
+                <div className="relative">
+                  <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <select 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all appearance-none font-bold text-slate-700"
+                    value={VISIT_PATHS.includes(patient.visitPath || '') ? patient.visitPath : '기타'}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setPatient({...patient, visitPath: val});
+                    }}
+                  >
+                    <option value="" disabled>내원경로 선택</option>
+                    {VISIT_PATHS.map(path => (
+                      <option key={path} value={path}>{path}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mt-1.5 space-y-1">
+                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-1">상세 내원 경로</label>
+                  <div className="relative">
+                    <Edit3 className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input 
+                      type="text" 
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm"
+                      value={patient.visitPathDetail || ''}
+                      onChange={e => setPatient({...patient, visitPathDetail: e.target.value})}
+                      placeholder="상세 내용을 입력하세요 (예: 래미안 1단지, 홍길동님 등)"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">연락처</label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -377,40 +391,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* AI 분석 섹션 */}
-          <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-8 rounded-2xl shadow-lg shadow-blue-200 text-white relative overflow-hidden group">
-            <div className="relative z-10 space-y-4">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-indigo-200" />
-                <h4 className="font-bold">AI 진단 요약</h4>
-              </div>
-              {isAnalyzing ? (
-                <div className="animate-pulse space-y-2">
-                  <div className="h-4 bg-white/20 rounded w-full"></div>
-                  <div className="h-4 bg-white/20 rounded w-4/5"></div>
-                </div>
-              ) : aiAnalysis ? (
-                <div className="space-y-3">
-                  <p className="text-sm leading-relaxed opacity-90">{aiAnalysis.summary}</p>
-                  <div className="pt-2 border-t border-white/20">
-                    <p className="text-[10px] uppercase font-bold opacity-60">권장 리콜 주기</p>
-                    <p className="font-bold text-xl">{aiAnalysis.suggestedRecallMonths}개월</p>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm opacity-80 leading-relaxed font-medium">진료 내역을 바탕으로 AI가 최적의 관리 계획을 제안합니다.</p>
-              )}
-              <button 
-                onClick={runAiAnalysis}
-                disabled={isAnalyzing}
-                className="w-full py-3 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-xl text-sm font-black transition-all border border-white/10"
-              >
-                {isAnalyzing ? '데이터 분석 중...' : 'AI 경영/진료 가이드'}
-              </button>
-            </div>
-            <Sparkles className="absolute -bottom-4 -right-4 w-32 h-32 opacity-10 rotate-12 group-hover:scale-110 transition-transform" />
           </div>
         </div>
 
