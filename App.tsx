@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, useNavigate, Navigate } from 'react-router-dom';
 import { 
   Users, 
@@ -20,7 +20,9 @@ import {
   Stethoscope,
   Briefcase,
   Monitor,
-  TrendingUp
+  TrendingUp,
+  X,
+  Phone
 } from 'lucide-react';
 import { Patient, RecallNotification, User, UserRole } from './types';
 import { storageService } from './services/storageService';
@@ -92,18 +94,82 @@ const Sidebar = ({ user, onLogout }: { user: User, onLogout: () => void }) => {
   );
 };
 
-const Header = ({ notifications }: { notifications: RecallNotification[] }) => {
+interface HeaderProps {
+  notifications: RecallNotification[];
+  searchTerm: string;
+  setSearchTerm: (val: string) => void;
+  searchResults: Patient[];
+  onResultClick: (id: string) => void;
+}
+
+const Header = ({ notifications, searchTerm, setSearchTerm, searchResults, onResultClick }: HeaderProps) => {
   const unreadCount = notifications.filter(n => !n.isRead).length;
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setSearchTerm('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [setSearchTerm]);
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-30">
-      <div className="flex items-center gap-4 bg-slate-50 border border-slate-200 rounded-full px-4 py-2 w-96">
-        <Search className="w-4 h-4 text-slate-400" />
-        <input 
-          type="text" 
-          placeholder="차트번호 또는 이름 검색..." 
-          className="bg-transparent border-none outline-none text-sm w-full"
-        />
+    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-50">
+      <div className="relative" ref={searchRef}>
+        <div className="flex items-center gap-4 bg-slate-50 border border-slate-200 rounded-full px-4 py-2 w-96 group focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all">
+          <Search className="w-4 h-4 text-slate-400 group-focus-within:text-blue-500" />
+          <input 
+            type="text" 
+            placeholder="차트번호 또는 이름 검색..." 
+            className="bg-transparent border-none outline-none text-sm w-full font-medium"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button onClick={() => setSearchTerm('')} className="text-slate-400 hover:text-slate-600">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* 검색 결과 드롭다운 */}
+        {searchTerm && (
+          <div className="absolute top-full left-0 w-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="max-h-80 overflow-y-auto">
+              {searchResults.length > 0 ? (
+                searchResults.map(p => (
+                  <div 
+                    key={p.id}
+                    onClick={() => onResultClick(p.id)}
+                    className="flex items-center gap-4 p-4 hover:bg-slate-50 cursor-pointer transition-colors border-b border-slate-50 last:border-0"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center font-bold text-blue-600 text-sm">
+                      {p.name[0]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-slate-800 text-sm truncate">{p.name}</p>
+                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">#{p.chartNumber}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+                        <Phone className="w-3 h-3" />
+                        {p.phone}
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-300" />
+                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-slate-400 text-sm font-medium">
+                  검색 결과가 없습니다.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-6">
@@ -246,6 +312,7 @@ const MainApp = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(authService.getCurrentUser());
   const [patients, setPatients] = useState<Patient[]>([]);
   const [notifications, setNotifications] = useState<RecallNotification[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -283,6 +350,18 @@ const MainApp = () => {
     navigate('/');
   };
 
+  const handleSearchResultClick = (id: string) => {
+    setSearchTerm('');
+    navigate(`/patient/${id}`);
+  };
+
+  const filteredSearchResults = searchTerm.trim() 
+    ? patients.filter(p => 
+        p.name.includes(searchTerm) || 
+        p.chartNumber.includes(searchTerm)
+      ).slice(0, 10)
+    : [];
+
   if (!currentUser) {
     return <AuthPage onLogin={handleLogin} />;
   }
@@ -291,7 +370,13 @@ const MainApp = () => {
     <div className="flex min-h-screen">
       <Sidebar user={currentUser} onLogout={handleLogout} />
       <div className="flex-1 flex flex-col">
-        <Header notifications={notifications} />
+        <Header 
+          notifications={notifications} 
+          searchTerm={searchTerm} 
+          setSearchTerm={setSearchTerm}
+          searchResults={filteredSearchResults}
+          onResultClick={handleSearchResultClick}
+        />
         <main className="flex-1 p-8 overflow-y-auto">
           <Routes>
             <Route path="/" element={<Dashboard patients={patients} />} />
