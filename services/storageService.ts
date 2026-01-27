@@ -2,6 +2,9 @@
 import { Patient } from '../types';
 
 const STORAGE_KEY = 'dentist_care_patients';
+const DOCTORS_KEY = 'dentist_care_doctors';
+
+const DEFAULT_DOCTORS = ['대표원장', '부원장1', '교정원장'];
 
 export const storageService = {
   getPatients: (): Patient[] => {
@@ -32,5 +35,14 @@ export const storageService = {
     const patients = storageService.getPatients();
     const filtered = patients.filter(p => p.id !== id);
     storageService.savePatients(filtered);
+  },
+
+  getDoctors: (): string[] => {
+    const data = localStorage.getItem(DOCTORS_KEY);
+    return data ? JSON.parse(data) : DEFAULT_DOCTORS;
+  },
+
+  saveDoctors: (doctors: string[]) => {
+    localStorage.setItem(DOCTORS_KEY, JSON.stringify(doctors));
   }
 };
