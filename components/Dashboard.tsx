@@ -19,7 +19,8 @@ import {
   X,
   Phone,
   MessageSquare,
-  Award
+  Award,
+  MapPin
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -33,7 +34,10 @@ import {
   LineChart,
   Line,
   AreaChart,
-  Area
+  Area,
+  PieChart,
+  Pie,
+  Legend
 } from 'recharts';
 
 interface DashboardProps {
@@ -42,21 +46,20 @@ interface DashboardProps {
 
 type ViewMode = 'weekly' | 'monthly';
 
+const COLORS = ['#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#10b981', '#f59e0b', '#94a3b8'];
+
 const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
   const navigate = useNavigate();
-  // 기본 뷰를 'weekly'로 변경
   const [patientView, setPatientView] = useState<ViewMode>('weekly');
   const [amtView, setAmtView] = useState<ViewMode>('weekly');
   const [rateView, setRateView] = useState<ViewMode>('weekly');
   const [visitView, setVisitView] = useState<ViewMode>('weekly');
 
-  // 모달 상태
   const [modalData, setModalData] = useState<{ title: string; list: Patient[] } | null>(null);
 
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
 
-  // 요일 및 주간 범위 계산
   const day = today.getDay();
   const diffToMonday = today.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(new Date(today).setDate(diffToMonday));
@@ -64,8 +67,6 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
   const sunday = new Date(new Date(monday).setDate(monday.getDate() + 6));
   sunday.setHours(23, 59, 59, 999);
 
-  // 리콜 통계 및 리스트
-  // '총 리콜 대상' 대신 '총 리콜 완료' 통계 계산
   const totalCompletedRecallsCount = patients.reduce((acc, p) => acc + (p.completedRecallDates?.length || 0), 0);
   const totalCompletedRecallsList = patients.filter(p => p.completedRecallDates && p.completedRecallDates.length > 0);
   
@@ -88,6 +89,18 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
     if (!amount) return 0;
     return parseInt(amount.replace(/[^0-9]/g, '')) || 0;
   };
+
+  // 내원 경로 데이터 가공
+  const visitPathData = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    patients.forEach(p => {
+      const path = p.visitPath || '미지정';
+      counts[path] = (counts[path] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [patients]);
 
   const getChartData = (mode: ViewMode) => {
     const now = new Date();
@@ -198,7 +211,6 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
         </div>
       </div>
 
-      {/* 리콜 통합 현황 섹션 */}
       <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6">
         <div 
           onClick={() => openRecallModal('리콜 완료 환자 명단', totalCompletedRecallsList)}
@@ -375,98 +387,45 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
           </div>
         </div>
 
-        {/* 4. 내원 환자 분석 */}
+        {/* 4. 내원 경로 분석 */}
         <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all group">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <div className="bg-emerald-600 p-3 rounded-2xl shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
-                <BarChart3 className="w-6 h-6 text-white" />
+                <MapPin className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-800">내원 환자 분석</h3>
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Clinic Traffic</p>
+                <h3 className="text-lg font-bold text-slate-800">내원 경로 분석</h3>
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Visit Source Analysis</p>
               </div>
             </div>
-            <ViewSelector current={visitView} set={setVisitView} />
           </div>
-
-          <div className="mb-6">
-            <p className="text-xs text-slate-400 font-bold mb-1">{visitView === 'weekly' ? '주간' : '월간'} 누적 내원수</p>
-            <p className="text-3xl font-black text-slate-900">{vData.reduce((acc, curr) => acc + curr.visits, 0)}명</p>
-          </div>
-
-          <div className="h-56 w-full">
+          
+          <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={vData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11}} allowDecimals={false} />
-                <Tooltip 
-                  cursor={{fill: '#f8fafc'}}
-                  contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)'}}
-                />
-                <Bar dataKey="visits" name="내원수" fill="#10b981" radius={[8, 8, 0, 0]} />
-              </BarChart>
+              <PieChart>
+                <Pie
+                  data={visitPathData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                >
+                  {visitPathData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend layout="horizontal" verticalAlign="bottom" align="center" iconType="circle" />
+              </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-slate-900 p-10 rounded-[2.5rem] text-white relative overflow-hidden flex flex-col justify-between min-h-[320px]">
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="bg-blue-500/20 p-2 rounded-xl border border-blue-500/30">
-                <PieChartIcon className="w-5 h-5 text-blue-400" />
-              </div>
-              <h3 className="text-xl font-bold">인공지능 경영 코칭</h3>
-            </div>
-            <p className="text-lg text-slate-300 leading-relaxed mb-8 max-w-2xl">
-              지금까지 총 <b>{totalCompletedRecallsCount}건</b>의 리콜을 성공적으로 완료했습니다. 오늘 방문 예정인 {todayRecallsCount}명의 환자에게 해피콜을 진행하여 노쇼를 방지하세요.
-            </p>
-          </div>
-          <div className="relative z-10 flex gap-4">
-            <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-2xl font-bold text-sm transition-all shadow-lg shadow-blue-900">상세 경영 리포트</button>
-            <button 
-              onClick={() => openRecallModal('오늘 리콜 명단', todayRecallsList)}
-              className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-2xl font-bold text-sm transition-all border border-white/10"
-            >오늘 리콜 확인</button>
-          </div>
-          <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-blue-500/10 rounded-full blur-[100px]" />
-        </div>
-
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-slate-800">긴급 리콜 대상</h3>
-            <span className="bg-rose-100 text-rose-600 text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-widest">Urgent</span>
-          </div>
-          <div className="space-y-4">
-            {upcomingRecalls.length > 0 ? upcomingRecalls.map((patient, i) => (
-              <div 
-                key={i} 
-                onClick={() => navigate(`/patient/${patient.id}`)}
-                className="flex items-center gap-4 p-4 rounded-2xl border border-slate-50 hover:bg-blue-50 hover:border-blue-100 transition-all cursor-pointer group"
-              >
-                <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-sm group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-                  {patient.name[0]}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-800 truncate text-sm">{patient.name}</p>
-                  <p className="text-xs text-slate-400 font-medium">{patient.nextRecallDate}</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors" />
-              </div>
-            )) : (
-              <div className="text-center py-16 text-slate-400">
-                <Calendar className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                <p className="text-sm">리콜 예정 환자가 없습니다.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 리콜 명단 모달 팝업 */}
       {modalData && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20">
