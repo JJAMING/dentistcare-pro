@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Plus, 
@@ -11,7 +11,9 @@ import {
   Filter,
   MessageSquare,
   AlertTriangle,
-  X
+  X,
+  Calendar,
+  Layers
 } from 'lucide-react';
 import { Patient } from '../types';
 import { excelService } from '../services/excelService';
@@ -22,18 +24,36 @@ interface PatientListProps {
   onRefresh: () => void;
 }
 
+type ViewFilterMode = 'all' | 'daily' | 'monthly';
+
 const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewFilterMode>('all');
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   
   // 삭제 모달 상태 관리
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<{id: string, name: string} | null>(null);
 
-  const filteredPatients = patients.filter(p => 
-    p.name.includes(searchTerm) || p.chartNumber.includes(searchTerm)
-  );
+  const filteredPatients = useMemo(() => {
+    return patients.filter(p => {
+      // 1. 검색어 필터
+      const matchesSearch = p.name.includes(searchTerm) || p.chartNumber.includes(searchTerm);
+      if (!matchesSearch) return false;
+
+      // 2. 기간 필터
+      if (viewMode === 'daily') {
+        return p.lastVisit === selectedDate;
+      } else if (viewMode === 'monthly') {
+        return p.lastVisit.startsWith(selectedMonth);
+      }
+      
+      return true; // 'all'인 경우
+    });
+  }, [patients, searchTerm, viewMode, selectedDate, selectedMonth]);
 
   const handleExport = () => {
     excelService.exportToExcel(patients);
@@ -85,27 +105,27 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 relative">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">환자 관리</h2>
-          <p className="text-slate-500">등록된 전체 환자 목록을 관리하세요.</p>
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight">환자 관리</h2>
+          <p className="text-slate-500 font-medium text-sm">등록된 전체 환자 목록 및 내원 기록을 관리하세요.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer shadow-sm transition-all">
-            <Upload className="w-4 h-4" />
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer shadow-sm transition-all">
+            <Upload className="w-3.5 h-3.5" />
             엑셀 업로드
             <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleImport} disabled={isImporting} />
           </label>
           <button 
             onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-sm transition-all"
+            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm transition-all"
           >
-            <Download className="w-4 h-4" />
-            엑셀 다운로드
+            <Download className="w-3.5 h-3.5" />
+            다운로드
           </button>
           <button 
             onClick={() => navigate('/patient/new')}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 border border-blue-600 rounded-xl text-sm font-medium text-white hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 border border-blue-600 rounded-xl text-xs font-black text-white hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all"
           >
             <Plus className="w-4 h-4" />
             신규 환자 등록
@@ -113,74 +133,129 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
-          <div className="relative w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input 
-              type="text" 
-              placeholder="이름, 차트번호 검색..."
-              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+        {/* 필터 제어 섹션 */}
+        <div className="p-6 border-b border-slate-100 bg-slate-50/30 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center bg-white p-1 rounded-2xl border border-slate-200 w-fit">
+            <button 
+              onClick={() => setViewMode('all')}
+              className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'all' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              전체
+            </button>
+            <button 
+              onClick={() => setViewMode('daily')}
+              className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'daily' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              일별 내원
+            </button>
+            <button 
+              onClick={() => setViewMode('monthly')}
+              className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'monthly' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              월별 내원
+            </button>
           </div>
-          <button className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm font-medium">
-            <Filter className="w-4 h-4" />
-            필터
-          </button>
+
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            {viewMode === 'daily' && (
+              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 animate-in slide-in-from-right-2 duration-300">
+                <Calendar className="w-4 h-4 text-blue-500" />
+                <input 
+                  type="date" 
+                  className="text-sm font-bold text-slate-700 outline-none"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                />
+              </div>
+            )}
+            {viewMode === 'monthly' && (
+              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 animate-in slide-in-from-right-2 duration-300">
+                <Layers className="w-4 h-4 text-emerald-500" />
+                <input 
+                  type="month" 
+                  className="text-sm font-bold text-slate-700 outline-none"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                />
+              </div>
+            )}
+            <div className="relative w-full sm:w-64">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input 
+                type="text" 
+                placeholder="이름, 차트번호 검색..."
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-slate-50/50 text-slate-500 text-xs font-semibold uppercase tracking-wider">
-                <th className="px-6 py-4">차트번호</th>
+              <tr className="bg-slate-50/50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
+                <th className="px-8 py-4">차트번호</th>
                 <th className="px-6 py-4">이름</th>
                 <th className="px-6 py-4">연락처</th>
                 <th className="px-6 py-4">최근 방문일</th>
                 <th className="px-6 py-4">다음 리콜일</th>
                 <th className="px-6 py-4">예약 내용</th>
-                <th className="px-6 py-4 text-right">관리</th>
+                <th className="px-8 py-4 text-right">관리</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-50">
               {filteredPatients.map((patient) => (
                 <tr 
                   key={patient.id} 
                   onClick={() => navigate(`/patient/${patient.id}`)}
-                  className="hover:bg-slate-50 transition-colors cursor-pointer group"
+                  className="hover:bg-blue-50/30 transition-colors cursor-pointer group"
                 >
-                  <td className="px-6 py-4">
-                    <span className="font-mono text-slate-500">{patient.chartNumber}</span>
+                  <td className="px-8 py-4">
+                    <span className="font-mono text-slate-400 text-xs bg-slate-50 px-2 py-1 rounded-md border border-slate-100">{patient.chartNumber}</span>
                   </td>
-                  <td className="px-6 py-4 font-bold text-slate-800">{patient.name}</td>
-                  <td className="px-6 py-4 text-slate-600">{patient.phone}</td>
-                  <td className="px-6 py-4 text-slate-600 text-sm">{patient.lastVisit}</td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
-                      patient.nextRecallDate <= new Date().toISOString().split('T')[0] 
-                      ? 'bg-red-100 text-red-600' 
-                      : 'bg-blue-100 text-blue-600'
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-black text-xs group-hover:bg-blue-600 group-hover:text-white transition-all">
+                        {patient.name[0]}
+                      </div>
+                      <span className="font-black text-slate-800">{patient.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-slate-500 text-sm font-medium">{patient.phone}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      <span className="text-slate-600 text-xs font-bold">{patient.lastVisit}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter ${
+                      patient.nextRecallDate && patient.nextRecallDate <= new Date().toISOString().split('T')[0] 
+                      ? 'bg-rose-50 text-rose-600 border border-rose-100' 
+                      : 'bg-blue-50 text-blue-600 border border-blue-100'
                     }`}>
                       {patient.nextRecallDate || '미설정'}
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 text-sm text-slate-500 truncate max-w-[150px]">
-                      {patient.nextRecallContent && <MessageSquare className="w-3 h-3 text-slate-400 shrink-0" />}
+                    <div className="flex items-center gap-2 text-xs text-slate-400 font-medium truncate max-w-[150px]">
+                      {patient.nextRecallContent && <MessageSquare className="w-3 h-3 text-slate-300 shrink-0" />}
                       <span className="truncate">{patient.nextRecallContent || '-'}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <td className="px-8 py-4 text-right">
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={(e) => openDeleteModal(patient.id, patient.name, e)}
-                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                        title="삭제"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                      <button className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg">
+                      <button className="p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all">
                         <ExternalLink className="w-4 h-4" />
                       </button>
                     </div>
@@ -189,8 +264,14 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
               ))}
               {filteredPatients.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
-                    등록된 환자가 없습니다.
+                  <td colSpan={7} className="px-6 py-32 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100">
+                        <Search className="w-10 h-10 text-slate-200" />
+                      </div>
+                      <p className="text-slate-400 font-bold">표시할 환자가 없습니다.</p>
+                      <p className="text-xs text-slate-300">검색어 또는 필터 설정을 확인해주세요.</p>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -201,35 +282,35 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
 
       {/* 커스텀 삭제 확인 모달 */}
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center text-red-600">
-                  <AlertTriangle className="w-6 h-6" />
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-white/20">
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div className="w-16 h-16 rounded-3xl bg-rose-50 flex items-center justify-center text-rose-600 shadow-inner">
+                  <AlertTriangle className="w-8 h-8" />
                 </div>
-                <button onClick={closeDeleteModal} className="text-slate-400 hover:text-slate-600 p-2">
-                  <X className="w-5 h-5" />
+                <button onClick={closeDeleteModal} className="text-slate-300 hover:text-slate-900 p-2 hover:bg-slate-50 rounded-full transition-all">
+                  <X className="w-6 h-6" />
                 </button>
               </div>
               
-              <h3 className="text-xl font-bold text-slate-800 mb-2">환자 정보 삭제</h3>
-              <p className="text-slate-500 leading-relaxed">
-                <span className="font-bold text-slate-800">[{patientToDelete?.name}]</span> 환자의 정보를 정말 삭제하시겠습니까? 
+              <h3 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">환자 정보 삭제</h3>
+              <p className="text-slate-500 leading-relaxed font-medium">
+                <span className="font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg">[{patientToDelete?.name}]</span> 환자의 정보를 삭제하시겠습니까? 
                 삭제된 데이터는 복구할 수 없으며 모든 진료 내역이 함께 사라집니다.
               </p>
             </div>
             
-            <div className="bg-slate-50 p-6 flex items-center gap-3">
+            <div className="bg-slate-50/50 p-8 flex items-center gap-4 border-t border-slate-100">
               <button 
                 onClick={closeDeleteModal}
-                className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-100 transition-colors"
+                className="flex-1 px-4 py-4 bg-white border border-slate-200 rounded-2xl font-black text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
               >
                 취소
               </button>
               <button 
                 onClick={confirmDelete}
-                className="flex-1 px-4 py-3 bg-red-600 rounded-xl font-bold text-white hover:bg-red-700 shadow-lg shadow-red-200 transition-colors"
+                className="flex-1 px-4 py-4 bg-rose-600 rounded-2xl font-black text-white hover:bg-rose-700 shadow-xl shadow-rose-200 transition-all"
               >
                 삭제하기
               </button>
