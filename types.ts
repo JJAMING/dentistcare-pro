@@ -30,10 +30,12 @@ export interface Patient {
   nextRecallDate: string;
   nextRecallContent: string; 
   visitPath?: string;
-  visitPathDetail?: string; // 상세 내원 경로 필드 추가
+  visitPathDetail?: string;
   treatments: Treatment[];
   status: 'active' | 'inactive';
-  completedRecallDates: string[]; 
+  completedRecallDates: string[];
+  externalId?: string; // 외부 시스템 연동용 ID
+  isLinked?: boolean;  // 연동 여부 상태
 }
 
 export interface RecallNotification {
