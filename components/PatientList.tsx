@@ -34,7 +34,8 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
   const [viewMode, setViewMode] = useState<ViewFilterMode>('all');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
-  
+  const [dentwebStatus, setDentwebStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
+  const [dentwebError, setDentwebError] = useState<string>('');
   // 삭제 모달 상태 관리
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<{id: string, name: string} | null>(null);
