@@ -33,6 +33,7 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
   const [viewMode, setViewMode] = useState<ViewFilterMode>('all');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [dwCount, setDwCount] = useState<number | null>(null);
   
   // 삭제 모달 상태 관리
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -54,6 +55,19 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
       return true; // 'all'인 경우
     });
   }, [patients, searchTerm, viewMode, selectedDate, selectedMonth]);
+ 
+  useEffect(() => {
+  const yyyymmdd = new Date().toISOString().slice(0, 10).replaceAll('-', '');
+  fetchReceptionList(yyyymmdd)
+    .then((rows) => {
+      console.log('✅ DentWeb rows:', rows);
+      setDwCount(Array.isArray(rows) ? rows.length : null);
+    })
+    .catch((e) => {
+      console.error('❌ DentWeb error:', e);
+      setDwCount(-1);
+    });
+}, []);
 
   const handleExport = () => {
     excelService.exportToExcel(patients);
