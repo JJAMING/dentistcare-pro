@@ -41,6 +41,22 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
   const [patientToDelete, setPatientToDelete] = useState<{id: string, name: string} | null>(null);
 
   const filteredPatients = useMemo(() => {
+  useEffect(() => {
+    const yyyymmdd = new Date().toISOString().slice(0, 10).replaceAll('-', '');
+
+    setDentwebStatus('loading');
+    fetchReceptionList(yyyymmdd)
+      .then((res) => {
+        console.log('✅ DentWeb 접수목록:', res);
+        setDentwebStatus('ok');
+      })
+      .catch((err) => {
+        console.error('❌ DentWeb API 오류:', err);
+        setDentwebError(String(err?.message || err));
+        setDentwebStatus('error');
+      });
+  }, []);
+
     return patients.filter(p => {
       // 1. 검색어 필터
       const matchesSearch = p.name.includes(searchTerm) || p.chartNumber.includes(searchTerm);
