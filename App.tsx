@@ -22,7 +22,8 @@ import {
   Monitor,
   TrendingUp,
   X,
-  Phone
+  Phone,
+  Link as LinkIcon
 } from 'lucide-react';
 import { Patient, RecallNotification, User, UserRole } from './types';
 import { storageService } from './services/storageService';
@@ -32,6 +33,7 @@ import PatientDetail from './components/PatientDetail';
 import Dashboard from './components/Dashboard';
 import RecallManager from './components/RecallManager';
 import CalendarView from './components/CalendarView';
+import PatientSearch from './components/PatientSearch';
 
 const Sidebar = ({ user, onLogout }: { user: User, onLogout: () => void }) => {
   const getRoleIcon = (role: UserRole) => {
@@ -57,6 +59,10 @@ const Sidebar = ({ user, onLogout }: { user: User, onLogout: () => void }) => {
         <Link to="/" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
           <Activity className="w-5 h-5 text-slate-400" />
           <span>대시보드</span>
+        </Link>
+        <Link to="/search" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
+          <Search className="w-5 h-5 text-slate-400" />
+          <span>환자 검색/연동</span>
         </Link>
         <Link to="/patients" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
           <Users className="w-5 h-5 text-slate-400" />
@@ -380,6 +386,7 @@ const MainApp = () => {
         <main className="flex-1 p-8 overflow-y-auto">
           <Routes>
             <Route path="/" element={<Dashboard patients={patients} />} />
+            <Route path="/search" element={<PatientSearch patients={patients} onRefresh={refreshPatients} />} />
             <Route path="/patients" element={<PatientList patients={patients} onRefresh={refreshPatients} />} />
             <Route path="/patient/:id" element={<PatientDetail onRefresh={refreshPatients} />} />
             <Route path="/recalls" element={<RecallManager patients={patients} />} />
