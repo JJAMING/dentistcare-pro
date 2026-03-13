@@ -1,0 +1,5 @@
+{
+  "name": "DentistCare Pro",
+  "description": "A comprehensive dental patient management system featuring patient charting, treatment history, recall scheduling, Excel data integration, and AI-driven clinical summaries.",
+  "requestFramePermissions": []
+}
