@@ -13,9 +13,10 @@ const Settings: React.FC = () => {
         const saved = localStorage.getItem('DENTWEB_API_URL');
         if (saved) {
             setApiUrl(saved);
+        } else if (import.meta.env.VITE_DENTWEB_API_URL) {
+            setApiUrl(import.meta.env.VITE_DENTWEB_API_URL);
         } else {
-            // 기본값 표시 (env 상수가 아닌 하드코딩된 기본값은 서비스에서 처리하므로 여기선 비워둠)
-            setApiUrl(window.location.protocol + '//' + window.location.hostname + ':3001');
+            setApiUrl('http://localhost:3001');
         }
     }, []);
 
