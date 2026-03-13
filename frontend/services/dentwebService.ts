@@ -44,7 +44,11 @@ export const dentwebService = {
     searchPatients: async (query: string): Promise<DentwebPatientRaw[]> => {
         if (!query || query.length < 2) return [];
         try {
-            const res = await fetch(`${getApiUrl()}/dentweb/patients?query=${encodeURIComponent(query)}`);
+            const res = await fetch(`${getApiUrl()}/dentweb/patients?query=${encodeURIComponent(query)}`, {
+                headers: {
+                    'ngrok-skip-browser-warning': 'true'
+                }
+            });
             if (!res.ok) throw new Error('덴트웹 서버 연결 실패');
             return await res.json();
         } catch (err) {
@@ -58,7 +62,11 @@ export const dentwebService = {
      */
     getNextAppointment: async (patientId: number): Promise<DentwebAppointment> => {
         try {
-            const res = await fetch(`${getApiUrl()}/dentweb/appointments/${patientId}`);
+            const res = await fetch(`${getApiUrl()}/dentweb/appointments/${patientId}`, {
+                headers: {
+                    'ngrok-skip-browser-warning': 'true'
+                }
+            });
             if (!res.ok) return { hasAppointment: false };
             return await res.json();
         } catch (err) {
@@ -108,7 +116,11 @@ export const dentwebService = {
      */
     checkHealth: async (): Promise<boolean> => {
         try {
-            const res = await fetch(`${getApiUrl()}/health`);
+            const res = await fetch(`${getApiUrl()}/health`, {
+                headers: {
+                    'ngrok-skip-browser-warning': 'true'
+                }
+            });
             const data = await res.json();
             return data.status === 'ok';
         } catch {
