@@ -223,7 +223,10 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
         let totalConsults = 0;
 
         patients.forEach(p => {
-          if (p.lastVisit === dStr) visits++;
+          const hasVisitToday = p.lastVisit === dStr || 
+                                p.nextRecallDate === dStr || 
+                                p.treatments.some(t => t.date === dStr);
+          if (hasVisitToday) visits++;
           if (p.firstVisit === dStr) newPatients++;
 
           p.treatments.forEach(t => {
@@ -416,7 +419,11 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
         </div>
         <div className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-2xl border border-emerald-100 flex items-center gap-2">
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-          <span className="text-sm font-bold">오늘 내원 {patients.filter(p => p.lastVisit === todayStr).length}명</span>
+          <span className="text-sm font-bold">오늘 내원 {patients.filter(p => 
+            p.lastVisit === todayStr || 
+            p.nextRecallDate === todayStr || 
+            p.treatments.some(t => t.date === todayStr)
+          ).length}명</span>
         </div>
       </div>
 

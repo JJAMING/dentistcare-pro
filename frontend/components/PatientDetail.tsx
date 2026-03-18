@@ -272,6 +272,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
     setPatient({
       ...patient,
       treatments: [newTreatment, ...patient.treatments],
+      lastVisit: todayStr,
       ...(isFirstTreatment && !patient.firstVisit ? { firstVisit: todayStr } : {})
     });
     // 신규 추가 시 바로 편집 모드
@@ -285,19 +286,22 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
     );
 
     let updatedFirstVisit = patient.firstVisit;
+    let updatedLastVisit = patient.lastVisit;
     // 날짜가 변경되었고, 환자에게 진료 내역이 존재하는 경우
     if (field === 'date' && newTreatments.length > 0) {
-      // 모든 진료 내역의 날짜 중 가장 빠른 날짜를 찾습니다
+      // 모든 진료 내역의 날짜 중 가장 빠른 날짜(firstVisit)와 가장 늦은 날짜(lastVisit)를 찾습니다
       const sortedDates = [...newTreatments].sort(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
       );
       updatedFirstVisit = sortedDates[0].date;
+      updatedLastVisit = sortedDates[sortedDates.length - 1].date;
     }
 
     setPatient({
       ...patient,
       treatments: newTreatments,
-      ...(updatedFirstVisit !== patient.firstVisit ? { firstVisit: updatedFirstVisit } : {})
+      firstVisit: updatedFirstVisit,
+      lastVisit: updatedLastVisit
     });
   };
 
