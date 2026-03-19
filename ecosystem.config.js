@@ -30,6 +30,17 @@ module.exports = {
             error_file: 'C:\\dentistcare-pro\\logs\\frontend-error.log',
             out_file: 'C:\\dentistcare-pro\\logs\\frontend-out.log',
             log_date_format: 'YYYY-MM-DD HH:mm:ss'
+        },
+        {
+            name: 'dentcare-tunnel',
+            script: 'C:\\dentistcare-pro\\start-tunnel.bat',
+            interpreter: 'none',
+            autorestart: true,
+            max_restarts: 50,
+            restart_delay: 10000,
+            error_file: 'C:\\dentistcare-pro\\logs\\tunnel-error.log',
+            out_file: 'C:\\dentistcare-pro\\logs\\tunnel-out.log',
+            log_date_format: 'YYYY-MM-DD HH:mm:ss'
         }
     ]
 };

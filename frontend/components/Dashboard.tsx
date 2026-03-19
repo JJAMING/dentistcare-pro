@@ -224,7 +224,6 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
 
         patients.forEach(p => {
           const hasVisitToday = p.lastVisit === dStr || 
-                                p.nextRecallDate === dStr || 
                                 p.treatments.some(t => t.date === dStr);
           if (hasVisitToday) visits++;
           if (p.firstVisit === dStr) newPatients++;
@@ -421,7 +420,6 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
           <span className="text-sm font-bold">오늘 내원 {patients.filter(p => 
             p.lastVisit === todayStr || 
-            p.nextRecallDate === todayStr || 
             p.treatments.some(t => t.date === todayStr)
           ).length}명</span>
         </div>

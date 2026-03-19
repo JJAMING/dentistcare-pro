@@ -34,6 +34,7 @@ export interface DentwebSyncResult {
     message: string;
     nextRecallDate?: string;
     nextRecallContent?: string;
+    lastVisitDate?: string;
     patientId?: number;
 }
 
@@ -103,6 +104,7 @@ export const dentwebService = {
                     : '덴트웹에 예약 내역이 없습니다.',
                 nextRecallDate: appt.hasAppointment ? (appt.appointmentDate || '') : '',
                 nextRecallContent,
+                lastVisitDate: matched.lastVisitDate,
                 patientId: matched.patientId,
             };
         } catch (err) {

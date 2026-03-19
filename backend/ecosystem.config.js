@@ -19,11 +19,11 @@ module.exports = {
             name: 'dentcare-tunnel',
             script: 'C:\\Users\\skyja\\OneDrive\\바탕 화면\\ngrok-v3-stable-windows-amd64\\ngrok.exe',
             args: [
-                'http',
-                '--url=https://unportioned-unprecipitate-zayne.ngrok-free.dev',
-                '--config=C:\\Users\\skyja\\AppData\\Local\\Packages\\ngrok.ngrok_1g87z0zv29zzc\\LocalCache\\Local\\ngrok\\ngrok.yml',
-                '3001'
+                'start',
+                'dentcare',
+                '--config=C:\\Users\\skyja\\AppData\\Local\\ngrok\\ngrok.yml'
             ],
+            interpreter: 'none',
             autorestart: true,
             max_restarts: 50,
             restart_delay: 10000,

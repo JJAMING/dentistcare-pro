@@ -70,10 +70,11 @@ app.get('/api/dentweb/patients', async (req, res) => {
                    OR sz휴대폰번호 LIKE @q
             `);
 
-        // 생년월일 포맷 정리 후 반환
+        // 생년월일 및 최종내원일 포맷 정리 후 반환
         const patients = result.recordset.map(p => ({
             ...p,
-            birthDate: formatBirthDate(p.birthDate)
+            birthDate: formatBirthDate(p.birthDate),
+            lastVisitDate: formatBirthDate(p.lastVisitDate)
         }));
 
         res.json(patients);
