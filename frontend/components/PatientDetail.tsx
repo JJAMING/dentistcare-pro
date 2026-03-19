@@ -158,10 +158,11 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
     setSyncMessage(null);
     const result = await dentwebService.syncPatientFromDentweb(patient.chartNumber);
     if (result.success) {
+      const today = new Date().toISOString().split('T')[0];
       // 덴트웹에 예약이 없다면(nextRecallDate가 빈 값이라면): 리콜 미설정으로 분류되도록 recallExcluded=false
       const updated = {
         ...patient,
-        lastVisit: result.lastVisitDate ?? patient.lastVisit,
+        lastVisit: result.isVisitedToday ? today : (result.lastVisitDate ?? patient.lastVisit),
         nextRecallDate: result.nextRecallDate ?? patient.nextRecallDate,
         nextRecallContent: result.nextRecallContent ?? patient.nextRecallContent,
         ...(result.nextRecallDate === '' ? { recallExcluded: false } : {}),

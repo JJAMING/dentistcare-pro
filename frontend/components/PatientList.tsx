@@ -62,6 +62,7 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
       // 2. 기간 필터
       if (viewMode === 'daily') {
         return p.lastVisit === selectedDate || 
+               p.nextRecallDate === selectedDate || 
                p.treatments.some(t => t.date === selectedDate);
       } else if (viewMode === 'monthly') {
         return p.lastVisit && p.lastVisit.startsWith(selectedMonth);
@@ -142,7 +143,7 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
           if (index !== -1) {
             currentPatients[index] = {
               ...currentPatients[index],
-              lastVisit: result.lastVisitDate || currentPatients[index].lastVisit,
+              lastVisit: result.isVisitedToday ? new Date().toISOString().split('T')[0] : (result.lastVisitDate || currentPatients[index].lastVisit),
               nextRecallDate: result.nextRecallDate || '',
               nextRecallContent: result.nextRecallContent || '',
               dentwebPatientId: result.patientId

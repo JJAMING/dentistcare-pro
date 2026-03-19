@@ -99,10 +99,12 @@ app.get('/api/dentweb/appointments/:patientId', async (req, res) => {
         // yyyyMMddHHmm 형식의 현재 시각
         const kst = new Date(today.getTime() + 9 * 60 * 60 * 1000);
         const nowStr = kst.toISOString().replace(/[-T:]/g, '').substring(0, 12);
+        const todayPrefix = nowStr.substring(0, 8); // yyyyMMdd
 
         const result = await pool.request()
             .input('pid', mssql.Int, parseInt(patientId))
             .input('now', mssql.Char(12), nowStr)
+            .input('today', mssql.VarChar, `${todayPrefix}%`)
             .query(`
                 SELECT TOP 1
                     sz예약시각    AS appointmentTime,
@@ -112,9 +114,13 @@ app.get('/api/dentweb/appointments/:patientId', async (req, res) => {
                     n이행현황     AS status
                 FROM PUB_V예약정보
                 WHERE n환자ID = @pid
-                  AND n이행현황 = 0
-                  AND sz예약시각 >= @now
-                ORDER BY sz예약시각 ASC
+                  AND (
+                    sz예약시각 LIKE @today
+                    OR (sz예약시각 >= @now AND n이행현황 = 0)
+                  )
+                ORDER BY 
+                    CASE WHEN sz예약시각 LIKE @today THEN 0 ELSE 1 END,
+                    sz예약시각 ASC
             `);
 
         if (result.recordset.length === 0) {
@@ -127,7 +133,8 @@ app.get('/api/dentweb/appointments/:patientId', async (req, res) => {
             appointmentDate: formatAppointmentDate(appt.appointmentTime),
             appointmentTime: appt.appointmentTime ? appt.appointmentTime.substring(8, 12) : '',
             appointmentContent: appt.appointmentContent || '',
-            memo: appt.memo || ''
+            memo: appt.memo || '',
+            status: appt.status // 이행현황 (0:예약, 1:접수, 2:진료중, 3:완료 등)
         });
     } catch (err) {
         console.error('DB error (appointments):', err.message);

@@ -26,6 +26,7 @@ export interface DentwebAppointment {
     appointmentTime?: string;  // 'HHmm'
     appointmentContent?: string;
     memo?: string;
+    status?: number; // 0:예약, 1:접수 등
 }
 
 /** 동기화 결과 */
@@ -36,6 +37,7 @@ export interface DentwebSyncResult {
     nextRecallContent?: string;
     lastVisitDate?: string;
     patientId?: number;
+    isVisitedToday?: boolean;
 }
 
 export const dentwebService = {
@@ -97,6 +99,9 @@ export const dentwebService = {
                 ? [appt.appointmentContent, appt.memo].filter(Boolean).join(' / ')
                 : '';
 
+            const today = new Date().toISOString().split('T')[0];
+            const isVisitedToday = !!(appt.hasAppointment && appt.appointmentDate === today && appt.status && appt.status > 0);
+
             return {
                 success: true,
                 message: appt.hasAppointment
@@ -106,6 +111,7 @@ export const dentwebService = {
                 nextRecallContent,
                 lastVisitDate: matched.lastVisitDate,
                 patientId: matched.patientId,
+                isVisitedToday
             };
         } catch (err) {
             console.error('DentWeb sync error:', err);
