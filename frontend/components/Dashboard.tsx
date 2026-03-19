@@ -203,6 +203,8 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
 
   const getChartData = (mode: ViewMode, weekOffset: number = 0, monthOffset: number = 0, yearOffset: number = 0) => {
     const now = new Date();
+    const normalize = (d: string) => (d || '').replace(/-/g, '');
+
     if (mode === 'weekly') {
       const dayNames = ['월', '화', '수', '목', '금', '토'];
       const dayOfWeek = now.getDay();
@@ -213,28 +215,22 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
         const d = new Date(mondayDate);
         d.setDate(mondayDate.getDate() + i);
         const dStr = d.toISOString().split('T')[0];
+        const dNorm = normalize(dStr);
 
-        let amount = 0;
-        let agreedAmount = 0;
-        let pendingAmount = 0;
-        let visits = 0;
-        let newPatients = 0;
-        let agreedCount = 0;
-        let totalConsults = 0;
+        let amount = 0, agreedAmount = 0, pendingAmount = 0, visits = 0, newPatients = 0, agreedCount = 0, totalConsults = 0;
 
         patients.forEach(p => {
-          const hasVisitToday = p.lastVisit === dStr || 
-                                p.treatments.some(t => t.date === dStr);
+          const hasVisitToday = normalize(p.lastVisit) === dNorm || 
+                                p.treatments.some(t => normalize(t.date) === dNorm);
           if (hasVisitToday) visits++;
-          if (p.firstVisit === dStr) newPatients++;
+          if (normalize(p.firstVisit) === dNorm) newPatients++;
 
           p.treatments.forEach(t => {
-            if (t.date === dStr) {
+            if (normalize(t.date) === dNorm) {
               const est = parseAmount(t.estimatedAmount);
               amount += est;
               if (t.isAgreed === true) agreedAmount += est;
               else pendingAmount += est;
-
               if (t.isAgreed !== undefined && t.isAgreed !== null) {
                 totalConsults++;
                 if (t.isAgreed) agreedCount++;
@@ -242,44 +238,46 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
             }
           });
         });
-
         const rate = totalConsults > 0 ? Math.round((agreedCount / totalConsults) * 100) : 0;
         const pendingCount = totalConsults - agreedCount;
         return { name, visits, amount: amount / 10000, agreedAmount: agreedAmount / 10000, pendingAmount: pendingAmount / 10000, rate, newPatients, totalConsults, agreedCount, pendingCount };
       });
 
     } else if (mode === 'monthly') {
-      // 선택한 월의 1주차~N주차 데이터 (7일 단위)
       const target = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
       const targetYear = target.getFullYear();
       const targetMonth = target.getMonth();
       const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
       const pad = (n: number) => String(n).padStart(2, '0');
 
-      // 7일씩 난누어 주차 생성 (1일~7일, 8일~14일, ...)
       const weeks: { name: string; startDay: number; endDay: number }[] = [];
-      let day = 1;
-      let weekNum = 1;
+      let day = 1, weekNum = 1;
       while (day <= daysInMonth) {
-        const start = day;
-        const end = Math.min(day + 6, daysInMonth);
+        const start = day, end = Math.min(day + 6, daysInMonth);
         weeks.push({ name: `${weekNum}주차`, startDay: start, endDay: end });
-        day += 7;
-        weekNum++;
+        day += 7; weekNum++;
       }
 
       return weeks.map(({ name, startDay, endDay }) => {
         let amount = 0, agreedAmount = 0, pendingAmount = 0, visits = 0, newPatients = 0, agreedCount = 0, totalConsults = 0;
-        const startStr = `${targetYear}-${pad(targetMonth + 1)}-${pad(startDay)}`;
-        const endStr = `${targetYear}-${pad(targetMonth + 1)}-${pad(endDay)}`;
+        const startNorm = `${targetYear}${pad(targetMonth + 1)}${pad(startDay)}`;
+        const endNorm = `${targetYear}${pad(targetMonth + 1)}${pad(endDay)}`;
 
         patients.forEach(p => {
-          const matchesLastVisit = p.lastVisit && p.lastVisit >= startStr && p.lastVisit <= endStr;
-          const matchesTreatments = p.treatments.some(t => t.date >= startStr && t.date <= endStr);
+          const lvNorm = normalize(p.lastVisit);
+          const matchesLastVisit = lvNorm && lvNorm >= startNorm && lvNorm <= endNorm;
+          const matchesTreatments = p.treatments.some(t => {
+            const tNorm = normalize(t.date);
+            return tNorm >= startNorm && tNorm <= endNorm;
+          });
           if (matchesLastVisit || matchesTreatments) visits++;
-          if (p.firstVisit && p.firstVisit >= startStr && p.firstVisit <= endStr) newPatients++;
+
+          const fvNorm = normalize(p.firstVisit || '');
+          if (fvNorm && fvNorm >= startNorm && fvNorm <= endNorm) newPatients++;
+          
           p.treatments.forEach(t => {
-            if (t.date >= startStr && t.date <= endStr) {
+            const tNorm = normalize(t.date);
+            if (tNorm >= startNorm && tNorm <= endNorm) {
               const est = parseAmount(t.estimatedAmount);
               amount += est;
               if (t.isAgreed === true) agreedAmount += est;
@@ -297,12 +295,13 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
       });
 
     } else {
-      // 연간: 선택한 연도의 1월~12월 월별 데이터
       const targetYear = now.getFullYear() + yearOffset;
       const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+      const pad = (n: number) => String(n).padStart(2, '0');
 
       return monthNames.map((name, i) => {
         let amount = 0, agreedAmount = 0, pendingAmount = 0, visits = 0, newPatients = 0, agreedCount = 0, totalConsults = 0;
+        const monthPrefixNorm = `${targetYear}${pad(i + 1)}`;
 
         patients.forEach(p => {
           p.treatments.forEach(t => {
@@ -330,6 +329,7 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
       });
     }
   };
+
 
   const pData = getChartData(patientView, patientWeekOffset, patientMonthOffset, patientYearOffset);
   const amtData = getChartData(amtView, amtWeekOffset, amtMonthOffset, amtYearOffset);
@@ -420,12 +420,14 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
         </div>
         <div className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-2xl border border-emerald-100 flex items-center gap-2">
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-          <span className="text-sm font-bold">오늘 내원 {patients.filter(p => 
-            p.lastVisit === todayStr || 
-            p.nextRecallDate === todayStr ||
-            p.treatments.some(t => t.date === todayStr)
-          ).length}명</span>
+          <span className="text-sm font-bold">오늘 내원 {patients.filter(p => {
+            const todayNorm = todayStr.replace(/-/g, '');
+            const lvNorm = (p.lastVisit || '').replace(/-/g, '');
+            const nrNorm = (p.nextRecallDate || '').replace(/-/g, '');
+            return lvNorm === todayNorm || nrNorm === todayNorm || p.treatments.some(t => (t.date || '').replace(/-/g, '') === todayNorm);
+          }).length}명</span>
         </div>
+
       </div>
 
       <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -53,7 +53,12 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
     }
   }, [location.state]);
 
+  const normalizeDate = (d: string) => (d || '').replace(/-/g, '');
+
   const filteredPatients = useMemo(() => {
+    const sDateNorm = normalizeDate(selectedDate);
+    const sMonthNorm = normalizeDate(selectedMonth);
+
     return patients.filter(p => {
       // 1. 검색어 필터
       const matchesSearch = p.name.includes(searchTerm) || p.chartNumber.includes(searchTerm);
@@ -61,20 +66,26 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
 
       // 2. 기간 필터
       if (viewMode === 'daily') {
-        return p.lastVisit === selectedDate || 
-               p.nextRecallDate === selectedDate || 
-               p.treatments.some(t => t.date === selectedDate);
+        const lastVisitNorm = normalizeDate(p.lastVisit);
+        const nextRecallDateNorm = normalizeDate(p.nextRecallDate);
+        
+        return lastVisitNorm === sDateNorm || 
+               nextRecallDateNorm === sDateNorm || 
+               p.treatments.some(t => normalizeDate(t.date) === sDateNorm);
       } else if (viewMode === 'monthly') {
-        const matchesLastVisit = p.lastVisit && p.lastVisit.startsWith(selectedMonth);
-        const matchesTreatments = p.treatments.some(t => t.date.startsWith(selectedMonth));
+        const lastVisitNorm = normalizeDate(p.lastVisit);
+        const matchesLastVisit = lastVisitNorm && lastVisitNorm.startsWith(sMonthNorm);
+        const matchesTreatments = p.treatments.some(t => normalizeDate(t.date).startsWith(sMonthNorm));
         return matchesLastVisit || matchesTreatments;
       } else if (viewMode === 'newMonthly') {
-        return p.firstVisit && p.firstVisit.startsWith(selectedMonth);
+        const firstVisitNorm = normalizeDate(p.firstVisit || '');
+        return firstVisitNorm && firstVisitNorm.startsWith(sMonthNorm);
       }
 
       return true; // 'all'인 경우
     });
   }, [patients, searchTerm, viewMode, selectedDate, selectedMonth]);
+
 
   const handleExport = () => {
     excelService.exportToExcel(patients);
@@ -332,9 +343,14 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-1.5">
                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      <span className="text-slate-600 text-xs font-bold">{patient.lastVisit}</span>
+                      <span className="text-slate-600 text-xs font-bold">
+                        {patient.lastVisit ? 
+                          patient.lastVisit.replace(/-/g, '').replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3') : 
+                          '-'}
+                      </span>
                     </div>
                   </td>
+
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter ${patient.nextRecallDate && patient.nextRecallDate <= new Date().toISOString().split('T')[0]
                       ? 'bg-rose-50 text-rose-600 border border-rose-100'
