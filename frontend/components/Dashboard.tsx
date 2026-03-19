@@ -224,7 +224,6 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
 
         patients.forEach(p => {
           const hasVisitToday = p.lastVisit === dStr || 
-                                p.nextRecallDate === dStr || 
                                 p.treatments.some(t => t.date === dStr);
           if (hasVisitToday) visits++;
           if (p.firstVisit === dStr) newPatients++;
@@ -275,7 +274,9 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
         const endStr = `${targetYear}-${pad(targetMonth + 1)}-${pad(endDay)}`;
 
         patients.forEach(p => {
-          if (p.lastVisit && p.lastVisit >= startStr && p.lastVisit <= endStr) visits++;
+          const matchesLastVisit = p.lastVisit && p.lastVisit >= startStr && p.lastVisit <= endStr;
+          const matchesTreatments = p.treatments.some(t => t.date >= startStr && t.date <= endStr);
+          if (matchesLastVisit || matchesTreatments) visits++;
           if (p.firstVisit && p.firstVisit >= startStr && p.firstVisit <= endStr) newPatients++;
           p.treatments.forEach(t => {
             if (t.date >= startStr && t.date <= endStr) {

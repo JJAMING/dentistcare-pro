@@ -65,7 +65,9 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
                p.nextRecallDate === selectedDate || 
                p.treatments.some(t => t.date === selectedDate);
       } else if (viewMode === 'monthly') {
-        return p.lastVisit && p.lastVisit.startsWith(selectedMonth);
+        const matchesLastVisit = p.lastVisit && p.lastVisit.startsWith(selectedMonth);
+        const matchesTreatments = p.treatments.some(t => t.date.startsWith(selectedMonth));
+        return matchesLastVisit || matchesTreatments;
       } else if (viewMode === 'newMonthly') {
         return p.firstVisit && p.firstVisit.startsWith(selectedMonth);
       }
