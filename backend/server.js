@@ -117,13 +117,14 @@ app.get('/api/dentweb/appointments/:patientId', async (req, res) => {
                     a.n소요시간     AS duration,
                     a.n이행현황     AS status
                 FROM PUB_V예약정보 a
-                JOIN PUB_V환자정보 p ON a.n환자ID = p.n환자ID
                 WHERE a.n환자ID = @pid
                   AND (
-                      (p.sz최종내원일 = @today AND a.sz예약시각 >= @tomorrow)
-                      OR (ISNULL(p.sz최종내원일, '') <> @today AND a.sz예약시각 >= @now AND a.n이행현황 = 0)
+                      a.sz예약시각 >= @tomorrow
+                      OR (a.sz예약시각 >= @now AND a.n이행현황 = 0)
                   )
-                ORDER BY a.sz예약시각 ASC
+                ORDER BY 
+                    CASE WHEN a.sz예약시각 >= @tomorrow THEN 0 ELSE 1 END,
+                    a.sz예약시각 ASC
             `);
 
         if (result.recordset.length === 0) {
@@ -194,10 +195,12 @@ app.get('/api/dentweb/daily-sync', async (req, res) => {
                     FROM PUB_V예약정보 a
                     WHERE a.n환자ID = dp.n환자ID 
                       AND (
-                          (p.sz최종내원일 = @today AND a.sz예약시각 >= @tomorrow)
-                          OR (ISNULL(p.sz최종내원일, '') <> @today AND a.sz예약시각 >= @now AND a.n이행현황 = 0)
+                          a.sz예약시각 >= @tomorrow
+                          OR (a.sz예약시각 >= @now AND a.n이행현황 = 0)
                       )
-                    ORDER BY a.sz예약시각 ASC
+                    ORDER BY 
+                        CASE WHEN a.sz예약시각 >= @tomorrow THEN 0 ELSE 1 END,
+                        a.sz예약시각 ASC
                 ) A;
             `);
 
