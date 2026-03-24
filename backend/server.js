@@ -101,21 +101,29 @@ app.get('/api/dentweb/appointments/:patientId', async (req, res) => {
         const nowStr = kst.toISOString().replace(/[-T:]/g, '').substring(0, 12);
         const todayPrefix = nowStr.substring(0, 8); // yyyyMMdd
 
+        const tomorrow = new Date(kst.getTime() + 24 * 60 * 60 * 1000);
+        const tomorrowPrefix = tomorrow.toISOString().replace(/[-T:]/g, '').substring(0, 8); // yyyyMMdd
+
         const result = await pool.request()
             .input('pid', mssql.Int, parseInt(patientId))
             .input('now', mssql.Char(12), nowStr)
-            .input('today', mssql.VarChar, `${todayPrefix}%`)
+            .input('today', mssql.VarChar, todayPrefix)
+            .input('tomorrow', mssql.VarChar, `${tomorrowPrefix}0000`)
             .query(`
                 SELECT TOP 1
-                    sz예약시각    AS appointmentTime,
-                    sz예약내용    AS appointmentContent,
-                    sz메모        AS memo,
-                    n소요시간     AS duration,
-                    n이행현황     AS status
-                FROM PUB_V예약정보
-                WHERE n환자ID = @pid
-                  AND (sz예약시각 >= @now AND n이행현황 = 0)
-                ORDER BY sz예약시각 ASC
+                    a.sz예약시각    AS appointmentTime,
+                    a.sz예약내용    AS appointmentContent,
+                    a.sz메모        AS memo,
+                    a.n소요시간     AS duration,
+                    a.n이행현황     AS status
+                FROM PUB_V예약정보 a
+                JOIN PUB_V환자정보 p ON a.n환자ID = p.n환자ID
+                WHERE a.n환자ID = @pid
+                  AND (
+                      (p.sz최종내원일 = @today AND a.sz예약시각 >= @tomorrow)
+                      OR (ISNULL(p.sz최종내원일, '') <> @today AND a.sz예약시각 >= @now AND a.n이행현황 = 0)
+                  )
+                ORDER BY a.sz예약시각 ASC
             `);
 
         if (result.recordset.length === 0) {
@@ -153,10 +161,14 @@ app.get('/api/dentweb/daily-sync', async (req, res) => {
         const nowStr = kst.toISOString().replace(/[-T:]/g, '').substring(0, 12);
         const todayPrefix = nowStr.substring(0, 8); // yyyyMMdd
 
+        const tomorrow = new Date(kst.getTime() + 24 * 60 * 60 * 1000);
+        const tomorrowPrefix = tomorrow.toISOString().replace(/[-T:]/g, '').substring(0, 8); // yyyyMMdd
+
         const result = await pool.request()
             .input('date', mssql.VarChar(8), searchDate)
             .input('now', mssql.Char(12), nowStr)
-            .input('today', mssql.VarChar, `${todayPrefix}%`)
+            .input('today', mssql.VarChar, todayPrefix)
+            .input('tomorrow', mssql.VarChar, `${tomorrowPrefix}0000`)
             .query(`
                 WITH DailyPatientIds AS (
                     SELECT n환자ID FROM PUB_V환자정보 WHERE sz최종내원일 = @date
@@ -181,7 +193,10 @@ app.get('/api/dentweb/daily-sync', async (req, res) => {
                         n이행현황 AS status
                     FROM PUB_V예약정보 a
                     WHERE a.n환자ID = dp.n환자ID 
-                      AND (a.sz예약시각 >= @now AND a.n이행현황 = 0)
+                      AND (
+                          (p.sz최종내원일 = @today AND a.sz예약시각 >= @tomorrow)
+                          OR (ISNULL(p.sz최종내원일, '') <> @today AND a.sz예약시각 >= @now AND a.n이행현황 = 0)
+                      )
                     ORDER BY a.sz예약시각 ASC
                 ) A;
             `);
