@@ -106,25 +106,18 @@ app.get('/api/dentweb/appointments/:patientId', async (req, res) => {
 
         const result = await pool.request()
             .input('pid', mssql.Int, parseInt(patientId))
-            .input('now', mssql.Char(12), nowStr)
-            .input('today', mssql.VarChar, todayPrefix)
-            .input('tomorrow', mssql.VarChar, `${tomorrowPrefix}0000`)
+            .input('todayDate', mssql.VarChar(8), todayPrefix)
             .query(`
                 SELECT TOP 1
                     a.sz예약시각    AS appointmentTime,
                     a.sz예약내용    AS appointmentContent,
                     a.sz메모        AS memo,
-                    a.n소요시간     AS duration,
+                    a.n소요시각     AS duration,
                     a.n이행현황     AS status
                 FROM PUB_V예약정보 a
                 WHERE a.n환자ID = @pid
-                  AND (
-                      a.sz예약시각 >= @tomorrow
-                      OR (a.sz예약시각 >= @now AND a.n이행현황 = 0)
-                  )
-                ORDER BY 
-                    CASE WHEN a.sz예약시각 >= @tomorrow THEN 0 ELSE 1 END,
-                    a.sz예약시각 ASC
+                  AND LEFT(a.sz예약시각, 8) > @todayDate
+                ORDER BY a.sz예약시각 ASC
             `);
 
         if (result.recordset.length === 0) {
@@ -167,14 +160,11 @@ app.get('/api/dentweb/daily-sync', async (req, res) => {
 
         const result = await pool.request()
             .input('date', mssql.VarChar(8), searchDate)
-            .input('now', mssql.Char(12), nowStr)
-            .input('today', mssql.VarChar, todayPrefix)
-            .input('tomorrow', mssql.VarChar, `${tomorrowPrefix}0000`)
             .query(`
                 WITH DailyPatientIds AS (
                     SELECT n환자ID FROM PUB_V환자정보 WHERE sz최종내원일 = @date
                     UNION
-                    SELECT n환자ID FROM PUB_V예약정보 WHERE sz예약시각 LIKE @date + '%'
+                    SELECT n환자ID FROM PUB_V예약정보 WHERE LEFT(sz예약시각, 8) = @date
                 )
                 SELECT 
                     p.n환자ID AS patientId,
@@ -194,13 +184,8 @@ app.get('/api/dentweb/daily-sync', async (req, res) => {
                         n이행현황 AS status
                     FROM PUB_V예약정보 a
                     WHERE a.n환자ID = dp.n환자ID 
-                      AND (
-                          a.sz예약시각 >= @tomorrow
-                          OR (a.sz예약시각 >= @now AND a.n이행현황 = 0)
-                      )
-                    ORDER BY 
-                        CASE WHEN a.sz예약시각 >= @tomorrow THEN 0 ELSE 1 END,
-                        a.sz예약시각 ASC
+                      AND LEFT(a.sz예약시각, 8) > @date
+                    ORDER BY a.sz예약시각 ASC
                 ) A;
             `);
 
