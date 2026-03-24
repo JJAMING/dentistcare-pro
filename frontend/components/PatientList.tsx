@@ -68,17 +68,22 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
             const idx = currentPatients.findIndex(p => p.chartNumber === result.chartNumber);
             if (idx !== -1) {
               const p = currentPatients[idx];
-              const newLastVisit = result.lastVisitDate || p.lastVisit;
+              // 오늘 실제 내원한 경우에만 lastVisit 업데이트
+              const newLastVisit = (result.lastVisitDate === todayStr) ? todayStr : p.lastVisit;
+              // 미래 예약이 있을 때만 nextRecallDate 업데이트 (없으면 기존 값 유지)
+              const newNextRecallDate = result.hasAppointment ? (result.nextRecallDate || p.nextRecallDate) : p.nextRecallDate;
+              const newNextRecallContent = result.hasAppointment ? (result.nextRecallContent || p.nextRecallContent) : p.nextRecallContent;
+
               if (
                 p.lastVisit !== newLastVisit ||
-                p.nextRecallDate !== (result.nextRecallDate || '') ||
-                p.nextRecallContent !== (result.nextRecallContent || '')
+                p.nextRecallDate !== newNextRecallDate ||
+                p.nextRecallContent !== newNextRecallContent
               ) {
                 currentPatients[idx] = {
                   ...p,
                   lastVisit: newLastVisit,
-                  nextRecallDate: result.nextRecallDate || '',
-                  nextRecallContent: result.nextRecallContent || '',
+                  nextRecallDate: newNextRecallDate,
+                  nextRecallContent: newNextRecallContent,
                 };
                 hasChanges = true;
               }
@@ -115,18 +120,22 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
               const idx = currentPatients.findIndex(p => p.chartNumber === result.chartNumber);
               if (idx !== -1) {
                 const p = currentPatients[idx];
-                const newLastVisit = result.isVisitedToday ? todayStr : (result.lastVisitDate || p.lastVisit);
+                // 오늘 실제 내원한 경우만 lastVisit 업데이트
+                const newLastVisit = (result.lastVisitDate === selectedDate) ? selectedDate : p.lastVisit;
+                // 미래 예약이 있을 때만 nextRecallDate 업데이트 (없으면 기존 값 유지)
+                const newNextRecallDate = result.hasAppointment ? (result.nextRecallDate || p.nextRecallDate) : p.nextRecallDate;
+                const newNextRecallContent = result.hasAppointment ? (result.nextRecallContent || p.nextRecallContent) : p.nextRecallContent;
                               
                 if (
                   p.lastVisit !== newLastVisit ||
-                  p.nextRecallDate !== (result.nextRecallDate || '') ||
-                  p.nextRecallContent !== (result.nextRecallContent || '')
+                  p.nextRecallDate !== newNextRecallDate ||
+                  p.nextRecallContent !== newNextRecallContent
                 ) {
                   currentPatients[idx] = {
                     ...p,
                     lastVisit: newLastVisit,
-                    nextRecallDate: result.nextRecallDate || '',
-                    nextRecallContent: result.nextRecallContent || '',
+                    nextRecallDate: newNextRecallDate,
+                    nextRecallContent: newNextRecallContent,
                   };
                   hasChanges = true;
                 }
