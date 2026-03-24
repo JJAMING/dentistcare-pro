@@ -54,6 +54,50 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
     }
   }, [location.state]);
 
+  // 환자 관리 탭 진입 시 오늘 날짜로 자동 실시간 연동
+  useEffect(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const syncToday = async () => {
+      setIsDailySyncing(true);
+      try {
+        const syncResults = await dentwebService.syncDailyPatients(todayStr);
+        if (syncResults && syncResults.length > 0) {
+          let hasChanges = false;
+          const currentPatients = [...patients];
+          syncResults.forEach((result: any) => {
+            const idx = currentPatients.findIndex(p => p.chartNumber === result.chartNumber);
+            if (idx !== -1) {
+              const p = currentPatients[idx];
+              const newLastVisit = result.lastVisitDate || p.lastVisit;
+              if (
+                p.lastVisit !== newLastVisit ||
+                p.nextRecallDate !== (result.nextRecallDate || '') ||
+                p.nextRecallContent !== (result.nextRecallContent || '')
+              ) {
+                currentPatients[idx] = {
+                  ...p,
+                  lastVisit: newLastVisit,
+                  nextRecallDate: result.nextRecallDate || '',
+                  nextRecallContent: result.nextRecallContent || '',
+                };
+                hasChanges = true;
+              }
+            }
+          });
+          if (hasChanges) {
+            storageService.savePatients(currentPatients);
+            onRefresh();
+          }
+        }
+      } catch (error) {
+        console.error('Failed to sync today patients on mount:', error);
+      } finally {
+        setIsDailySyncing(false);
+      }
+    };
+    syncToday();
+  }, []); // 탭 진입(마운트) 시 1회 자동 실행
+
   // 일별 내원 실시간 동기화 로직
   useEffect(() => {
     if (viewMode === 'daily' && selectedDate) {
