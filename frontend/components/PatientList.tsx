@@ -70,13 +70,13 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
         const nextRecallDateNorm = normalizeDate(p.nextRecallDate);
         
         return lastVisitNorm === sDateNorm || 
-               nextRecallDateNorm === sDateNorm || 
-               p.treatments.some(t => normalizeDate(t.date) === sDateNorm);
+               nextRecallDateNorm === sDateNorm;
       } else if (viewMode === 'monthly') {
         const lastVisitNorm = normalizeDate(p.lastVisit);
+        const nextRecallDateNorm = normalizeDate(p.nextRecallDate);
         const matchesLastVisit = lastVisitNorm && lastVisitNorm.startsWith(sMonthNorm);
-        const matchesTreatments = p.treatments.some(t => normalizeDate(t.date).startsWith(sMonthNorm));
-        return matchesLastVisit || matchesTreatments;
+        const matchesNextRecall = nextRecallDateNorm && nextRecallDateNorm.startsWith(sMonthNorm);
+        return matchesLastVisit || matchesNextRecall;
       } else if (viewMode === 'newMonthly') {
         const firstVisitNorm = normalizeDate(p.firstVisit || '');
         return firstVisitNorm && firstVisitNorm.startsWith(sMonthNorm);

@@ -424,7 +424,7 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
             const todayNorm = todayStr.replace(/-/g, '');
             const lvNorm = (p.lastVisit || '').replace(/-/g, '');
             const nrNorm = (p.nextRecallDate || '').replace(/-/g, '');
-            return lvNorm === todayNorm || nrNorm === todayNorm || p.treatments.some(t => (t.date || '').replace(/-/g, '') === todayNorm);
+            return lvNorm === todayNorm || nrNorm === todayNorm;
           }).length}명</span>
         </div>
 
