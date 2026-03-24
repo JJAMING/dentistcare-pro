@@ -114,13 +114,8 @@ app.get('/api/dentweb/appointments/:patientId', async (req, res) => {
                     n이행현황     AS status
                 FROM PUB_V예약정보
                 WHERE n환자ID = @pid
-                  AND (
-                    sz예약시각 LIKE @today
-                    OR (sz예약시각 >= @now AND n이행현황 = 0)
-                  )
-                ORDER BY 
-                    CASE WHEN sz예약시각 LIKE @today THEN 0 ELSE 1 END,
-                    sz예약시각 ASC
+                  AND (sz예약시각 >= @now AND n이행현황 = 0)
+                ORDER BY sz예약시각 ASC
             `);
 
         if (result.recordset.length === 0) {
@@ -186,13 +181,8 @@ app.get('/api/dentweb/daily-sync', async (req, res) => {
                         n이행현황 AS status
                     FROM PUB_V예약정보 a
                     WHERE a.n환자ID = dp.n환자ID 
-                      AND (
-                          a.sz예약시각 LIKE @today
-                          OR (a.sz예약시각 >= @now AND a.n이행현황 = 0)
-                      )
-                    ORDER BY 
-                        CASE WHEN a.sz예약시각 LIKE @today THEN 0 ELSE 1 END,
-                        a.sz예약시각 ASC
+                      AND (a.sz예약시각 >= @now AND a.n이행현황 = 0)
+                    ORDER BY a.sz예약시각 ASC
                 ) A;
             `);
 

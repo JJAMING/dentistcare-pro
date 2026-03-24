@@ -119,10 +119,8 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
       // 2. 기간 필터
       if (viewMode === 'daily') {
         const lastVisitNorm = normalizeDate(p.lastVisit);
-        const nextRecallDateNorm = normalizeDate(p.nextRecallDate);
         
-        return lastVisitNorm === sDateNorm || 
-               nextRecallDateNorm === sDateNorm;
+        return lastVisitNorm === sDateNorm;
       } else if (viewMode === 'monthly') {
         const lastVisitNorm = normalizeDate(p.lastVisit);
         const nextRecallDateNorm = normalizeDate(p.nextRecallDate);
