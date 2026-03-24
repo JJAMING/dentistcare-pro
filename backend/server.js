@@ -112,7 +112,6 @@ app.get('/api/dentweb/appointments/:patientId', async (req, res) => {
                     a.sz예약시각    AS appointmentTime,
                     a.sz예약내용    AS appointmentContent,
                     a.sz메모        AS memo,
-                    a.n소요시각     AS duration,
                     a.n이행현황     AS status
                 FROM PUB_V예약정보 a
                 WHERE a.n환자ID = @pid
@@ -169,7 +168,7 @@ app.get('/api/dentweb/daily-sync', async (req, res) => {
                     UNION
                     SELECT n환자ID FROM PUB_V예약정보 WHERE LEFT(sz예약시각, 8) = @date
                 )
-                SELECT 
+                SELECT
                     p.n환자ID AS patientId,
                     p.sz차트번호 AS chartNumber,
                     p.sz최종내원일 AS lastVisitDate,
@@ -180,7 +179,7 @@ app.get('/api/dentweb/daily-sync', async (req, res) => {
                 FROM DailyPatientIds dp
                 JOIN PUB_V환자정보 p ON dp.n환자ID = p.n환자ID
                 OUTER APPLY (
-                    SELECT TOP 1 
+                    SELECT TOP 1
                         sz예약시각 AS appointmentTime,
                         sz예약내용 AS appointmentContent,
                         sz메모 AS memo,
