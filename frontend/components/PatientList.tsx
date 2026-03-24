@@ -41,6 +41,7 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
   // 전체 동기화 상태
   const [isSyncingAll, setIsSyncingAll] = useState(false);
   const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0 });
+  const [isDailySyncing, setIsDailySyncing] = useState(false);
 
   // 삭제 모달 상태 관리
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -52,6 +53,57 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
+
+  // 일별 내원 실시간 동기화 로직
+  useEffect(() => {
+    if (viewMode === 'daily' && selectedDate) {
+      const syncDaily = async () => {
+        setIsDailySyncing(true);
+        try {
+          const syncResults = await dentwebService.syncDailyPatients(selectedDate);
+          
+          if (syncResults && syncResults.length > 0) {
+            let hasChanges = false;
+            const currentPatients = [...patients];
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            syncResults.forEach((result: any) => {
+              const idx = currentPatients.findIndex(p => p.chartNumber === result.chartNumber);
+              if (idx !== -1) {
+                const p = currentPatients[idx];
+                const newLastVisit = result.isVisitedToday ? todayStr : (result.lastVisitDate || p.lastVisit);
+                              
+                if (
+                  p.lastVisit !== newLastVisit ||
+                  p.nextRecallDate !== (result.nextRecallDate || '') ||
+                  p.nextRecallContent !== (result.nextRecallContent || '')
+                ) {
+                  currentPatients[idx] = {
+                    ...p,
+                    lastVisit: newLastVisit,
+                    nextRecallDate: result.nextRecallDate || '',
+                    nextRecallContent: result.nextRecallContent || '',
+                  };
+                  hasChanges = true;
+                }
+              }
+            });
+
+            if (hasChanges) {
+              storageService.savePatients(currentPatients);
+              onRefresh();
+            }
+          }
+        } catch (error) {
+          console.error('Failed to sync daily patients:', error);
+        } finally {
+          setIsDailySyncing(false);
+        }
+      };
+
+      syncDaily();
+    }
+  }, [viewMode, selectedDate]);
 
   const normalizeDate = (d: string) => (d || '').replace(/-/g, '');
 
@@ -189,6 +241,12 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
           <p className="text-slate-500 font-medium text-sm">등록된 전체 환자 목록 및 내원 기록을 관리하세요.</p>
         </div>
         <div className="flex items-center gap-2">
+          {isDailySyncing && viewMode === 'daily' && (
+            <div className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-xs font-black text-blue-600 shadow-sm animate-pulse transition-all">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              실시간 동기화 중...
+            </div>
+          )}
           <button
             onClick={handleSyncAll}
             disabled={isSyncingAll}

@@ -120,6 +120,45 @@ export const dentwebService = {
     },
 
     /**
+     * 특정 날짜의 내원 및 예약 환자들의 덴트웹 최신 정보들 일괄 조회
+     * - date: 'YYYY-MM-DD' 형식
+     */
+    syncDailyPatients: async (date: string): Promise<DentwebSyncResult[]> => {
+        try {
+            const res = await fetch(`${getApiUrl()}/dentweb/daily-sync?date=${date}`, {
+                headers: {
+                    'ngrok-skip-browser-warning': 'true'
+                }
+            });
+            if (!res.ok) throw new Error('덴트웹 서버 연결 실패');
+            
+            const rawResults = await res.json();
+            const today = new Date().toISOString().split('T')[0];
+
+            return rawResults.map((r: any) => {
+                const isVisitedToday = !!(r.hasAppointment && r.appointmentDate === today && r.status > 0);
+                const nextRecallContent = r.hasAppointment
+                    ? [r.appointmentContent, r.memo].filter(Boolean).join(' / ')
+                    : '';
+
+                return {
+                    success: true,
+                    message: '성공',
+                    nextRecallDate: r.hasAppointment ? (r.appointmentDate || '') : '',
+                    nextRecallContent,
+                    lastVisitDate: r.lastVisitDate,
+                    patientId: r.patientId,
+                    chartNumber: r.chartNumber,
+                    isVisitedToday
+                };
+            });
+        } catch (err) {
+            console.error('DentWeb daily-sync error:', err);
+            return [];
+        }
+    },
+
+    /**
      * 헬스체크
      */
     checkHealth: async (): Promise<boolean> => {

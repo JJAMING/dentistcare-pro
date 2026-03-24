@@ -143,7 +143,80 @@ app.get('/api/dentweb/appointments/:patientId', async (req, res) => {
 });
 
 // ────────────────────────────────────────
-// 3) 헬스체크 API
+// 3) 특정 날짜 관련 환자 실시간 연동 API
+//    GET /api/dentweb/daily-sync?date=YYYY-MM-DD
+//    해당 날짜에 최종내원일이거나 예약이 있는 모든 환자 정보 및 최신 다음예약 반환
+// ────────────────────────────────────────
+app.get('/api/dentweb/daily-sync', async (req, res) => {
+    const { date } = req.query; // '2026-03-24' 형태
+    if (!date) return res.status(400).json({ error: 'date parameter is required' });
+
+    try {
+        const pool = await mssql.connect(dbConfig);
+        const searchDate = date.replace(/-/g, ''); // '20260324'
+        const kst = new Date(new Date().getTime() + 9 * 60 * 60 * 1000);
+        const nowStr = kst.toISOString().replace(/[-T:]/g, '').substring(0, 12);
+        const todayPrefix = nowStr.substring(0, 8); // yyyyMMdd
+
+        const result = await pool.request()
+            .input('date', mssql.VarChar(8), searchDate)
+            .input('now', mssql.Char(12), nowStr)
+            .input('today', mssql.VarChar, `${todayPrefix}%`)
+            .query(`
+                WITH DailyPatientIds AS (
+                    SELECT n환자ID FROM PUB_V환자정보 WHERE sz최종내원일 = @date
+                    UNION
+                    SELECT n환자ID FROM PUB_V예약정보 WHERE sz예약시각 LIKE @date + '%'
+                )
+                SELECT 
+                    p.n환자ID AS patientId,
+                    p.sz차트번호 AS chartNumber,
+                    p.sz최종내원일 AS lastVisitDate,
+                    A.appointmentTime,
+                    A.appointmentContent,
+                    A.memo,
+                    A.status
+                FROM DailyPatientIds dp
+                JOIN PUB_V환자정보 p ON dp.n환자ID = p.n환자ID
+                OUTER APPLY (
+                    SELECT TOP 1 
+                        sz예약시각 AS appointmentTime,
+                        sz예약내용 AS appointmentContent,
+                        sz메모 AS memo,
+                        n이행현황 AS status
+                    FROM PUB_V예약정보 a
+                    WHERE a.n환자ID = dp.n환자ID 
+                      AND (
+                          a.sz예약시각 LIKE @today
+                          OR (a.sz예약시각 >= @now AND a.n이행현황 = 0)
+                      )
+                    ORDER BY 
+                        CASE WHEN a.sz예약시각 LIKE @today THEN 0 ELSE 1 END,
+                        a.sz예약시각 ASC
+                ) A;
+            `);
+
+        const syncResults = result.recordset.map(row => ({
+            patientId: row.patientId,
+            chartNumber: row.chartNumber,
+            lastVisitDate: formatBirthDate(row.lastVisitDate), // 'YYYY-MM-DD'
+            hasAppointment: !!row.appointmentTime,
+            appointmentDate: row.appointmentTime ? formatAppointmentDate(row.appointmentTime) : '',
+            appointmentTime: row.appointmentTime ? row.appointmentTime.substring(8, 12) : '',
+            appointmentContent: row.appointmentContent || '',
+            memo: row.memo || '',
+            status: row.status
+        }));
+
+        res.json(syncResults);
+    } catch (err) {
+        console.error('DB error (daily-sync):', err.message);
+        res.status(500).json({ error: 'Database error', details: err.message });
+    }
+});
+
+// ────────────────────────────────────────
+// 4) 헬스체크 API
 // ────────────────────────────────────────
 app.get('/api/health', async (req, res) => {
     try {
