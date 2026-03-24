@@ -292,7 +292,7 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
           <p className="text-slate-500 font-medium text-sm">등록된 전체 환자 목록 및 내원 기록을 관리하세요.</p>
         </div>
         <div className="flex items-center gap-2">
-          {isDailySyncing && viewMode === 'daily' && (
+          {isDailySyncing && (
             <div className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-xs font-black text-blue-600 shadow-sm animate-pulse transition-all">
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
               실시간 동기화 중...

@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Patient } from '../types';
-import { Bell, Calendar, Phone, CheckCircle, ChevronRight, AlertTriangle, XCircle, MessageSquare, X } from 'lucide-react';
+import { Bell, Calendar, Phone, CheckCircle, ChevronRight, AlertTriangle, XCircle, MessageSquare, X, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { storageService } from '../services/storageService';
+import { dentwebService } from '../services/dentwebService';
 
 interface RecallManagerProps {
   patients: Patient[];
@@ -18,6 +19,58 @@ const RecallManager: React.FC<RecallManagerProps> = ({ patients, onRefresh }) =>
   const [activeTab, setActiveTab] = useState<TabType>('unset');
   // 제외 확인 팝업용 상태
   const [confirmDismiss, setConfirmDismiss] = useState<Patient | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // 리콜 탭 진입 시 오늘 날짜로 자동 실시간 연동
+  useEffect(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const syncToday = async () => {
+      setIsSyncing(true);
+      try {
+        const syncResults = await dentwebService.syncDailyPatients(todayStr);
+        if (syncResults && syncResults.length > 0) {
+          let hasChanges = false;
+          const currentPatients = [...patients];
+
+          syncResults.forEach((result: any) => {
+            const idx = currentPatients.findIndex(p => p.chartNumber === result.chartNumber);
+            if (idx !== -1) {
+              const p = currentPatients[idx];
+              // 오늘 실제 내원한 경우에만 lastVisit 업데이트
+              const newLastVisit = (result.lastVisitDate === todayStr) ? todayStr : p.lastVisit;
+              // 미래 예약이 있을 때만 nextRecallDate 업데이트 (없으면 기존 값 유지)
+              const newNextRecallDate = result.hasAppointment ? (result.nextRecallDate || p.nextRecallDate) : p.nextRecallDate;
+              const newNextRecallContent = result.hasAppointment ? (result.nextRecallContent || p.nextRecallContent) : p.nextRecallContent;
+
+              if (
+                p.lastVisit !== newLastVisit ||
+                p.nextRecallDate !== newNextRecallDate ||
+                p.nextRecallContent !== newNextRecallContent
+              ) {
+                currentPatients[idx] = {
+                  ...p,
+                  lastVisit: newLastVisit,
+                  nextRecallDate: newNextRecallDate,
+                  nextRecallContent: newNextRecallContent,
+                };
+                hasChanges = true;
+              }
+            }
+          });
+
+          if (hasChanges) {
+            storageService.savePatients(currentPatients);
+            onRefresh();
+          }
+        }
+      } catch (error) {
+        console.error('Failed to sync today patients on mount:', error);
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+    syncToday();
+  }, []); // 탭 진입 시 1회 자동 실행
 
   // 리콜 미설정: nextRecallDate 없고 recallExcluded도 아닌 환자
   const noRecall = patients.filter(p => !p.nextRecallDate && !p.recallExcluded);
@@ -121,6 +174,12 @@ const RecallManager: React.FC<RecallManagerProps> = ({ patients, onRefresh }) =>
         </div>
         {/* 요약 뱃지 */}
         <div className="flex items-center gap-3">
+          {isSyncing && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-xl text-xs font-black text-blue-600 shadow-sm animate-pulse transition-all">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              실시간 동기화 중...
+            </div>
+          )}
           {noRecall.length > 0 && (
             <span className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-black border border-slate-200">
               <XCircle className="w-3.5 h-3.5" />
