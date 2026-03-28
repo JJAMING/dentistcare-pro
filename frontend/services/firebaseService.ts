@@ -6,13 +6,13 @@ import { Patient, User } from '../types';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyASn8cA59zSWf95-5zEAs62BLREaIgZ_HI",
-  authDomain: "dentistcarepro.firebaseapp.com",
-  projectId: "dentistcarepro",
-  storageBucket: "dentistcarepro.firebasestorage.app",
-  messagingSenderId: "838719559703",
-  appId: "1:838719559703:web:5f383190584af65c112452",
-  measurementId: "G-J69Z8ZZTTB"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 const app = initializeApp(firebaseConfig);
