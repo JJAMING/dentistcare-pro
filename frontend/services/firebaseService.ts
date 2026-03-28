@@ -24,7 +24,7 @@ export const firebaseService = {
   /**
    * 로컬 스토리지의 전체 데이터를 Firestore로 업로드 (일괄 동기화)
    */
-  syncToCloud: async (patients: Patient[], doctors: string[]) => {
+  syncToCloud: async (patients: Patient[], doctors: string[], clinicId: string) => {
     try {
       const batch = writeBatch(db);
 
@@ -33,7 +33,7 @@ export const firebaseService = {
         const patientRef = doc(db, 'patients', patient.id);
         batch.set(patientRef, { 
             ...patient, 
-            clinicId: "baroom_dental" // 바룸치과의원 고유 ID (논리적 연동용)
+            clinicId: clinicId // 현재 로그안한 치과의 고유 ID 사용
         });
       });
 

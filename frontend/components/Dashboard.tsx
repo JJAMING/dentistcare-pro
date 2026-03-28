@@ -423,10 +423,16 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
     
     setIsCloudSyncing(true);
     try {
+      const user = authService.getCurrentUser();
+      if (!user) {
+        alert('로그인 정보가 없습니다. 다시 로그인해 주세요.');
+        return;
+      }
+
       const currentPatients = storageService.getPatients();
       const currentDoctors = storageService.getDoctors();
       
-      await firebaseService.syncToCloud(currentPatients, currentDoctors);
+      await firebaseService.syncToCloud(currentPatients, currentDoctors, user.clinicId);
       
       const now = new Date().toLocaleString();
       setLastSyncTime(now);
