@@ -38,6 +38,8 @@ export interface DentwebSyncResult {
     lastVisitDate?: string;
     patientId?: number;
     isVisitedToday?: boolean;
+    hasAppointment?: boolean;
+    chartNumber?: string;
 }
 
 export const dentwebService = {
@@ -111,7 +113,8 @@ export const dentwebService = {
                 nextRecallContent,
                 lastVisitDate: matched.lastVisitDate,
                 patientId: matched.patientId,
-                isVisitedToday
+                isVisitedToday,
+                hasAppointment: appt.hasAppointment
             };
         } catch (err) {
             console.error('DentWeb sync error:', err);
@@ -149,7 +152,8 @@ export const dentwebService = {
                     lastVisitDate: r.lastVisitDate,
                     patientId: r.patientId,
                     chartNumber: r.chartNumber,
-                    isVisitedToday
+                    isVisitedToday,
+                    hasAppointment: !!r.hasAppointment
                 };
             });
         } catch (err) {
