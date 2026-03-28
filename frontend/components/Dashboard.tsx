@@ -21,7 +21,9 @@ import {
   Phone,
   MessageSquare,
   Award,
-  MapPin
+  MapPin,
+  Cloud,
+  Check
 } from 'lucide-react';
 import {
   BarChart,
@@ -40,6 +42,9 @@ import {
   Pie,
   Legend
 } from 'recharts';
+import { firebaseService } from '../services/firebaseService';
+import { storageService } from '../services/storageService';
+import { authService } from '../services/authService';
 
 interface DashboardProps {
   patients: Patient[];
@@ -72,6 +77,8 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
   const [visitPathYearOffset, setVisitPathYearOffset] = useState(0);
 
   const [modalData, setModalData] = useState<{ title: string; list: Patient[] } | null>(null);
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(localStorage.getItem('LAST_CLOUD_SYNC'));
 
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
@@ -411,21 +418,64 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
     setModalData({ title, list });
   };
 
+  const handleCloudSync = async () => {
+    if (!window.confirm('현재 브라우저의 모든 데이터를 클라우드(Firebase)로 업로드하시겠습니까?')) return;
+    
+    setIsCloudSyncing(true);
+    try {
+      const currentPatients = storageService.getPatients();
+      const currentDoctors = storageService.getDoctors();
+      
+      await firebaseService.syncToCloud(currentPatients, currentDoctors);
+      
+      const now = new Date().toLocaleString();
+      setLastSyncTime(now);
+      localStorage.setItem('LAST_CLOUD_SYNC', now);
+      alert('클라우드 동기화가 완료되었습니다!');
+    } catch (error) {
+      alert('클라우드 동기화 중 오류가 발생했습니다. 설정값을 확인해 주세요.');
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-16">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tight">종합 경영 대시보드</h2>
-          <p className="text-slate-500 font-medium">실시간 환자 유입 및 리콜 현황을 분석하여 병원을 관리하세요.</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-slate-500 font-medium">실시간 환자 유입 및 리콜 현황을 분석하여 병원을 관리하세요.</p>
+            <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg text-xs font-black border border-blue-100">
+              {authService.getCurrentUser()?.clinicName || '바룸치과의원'}
+            </span>
+          </div>
         </div>
-        <div className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-2xl border border-emerald-100 flex items-center gap-2">
-          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-          <span className="text-sm font-bold">오늘 내원 {patients.filter(p => {
-            const todayNorm = todayStr.replace(/-/g, '');
-            const lvNorm = (p.lastVisit || '').replace(/-/g, '');
-            const nrNorm = (p.nextRecallDate || '').replace(/-/g, '');
-            return lvNorm === todayNorm || nrNorm === todayNorm;
-          }).length}명</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleCloudSync}
+            disabled={isCloudSyncing}
+            className={`flex items-center gap-2 px-4 py-2 rounded-2xl border text-sm font-black shadow-sm transition-all ${
+              isCloudSyncing 
+                ? 'bg-blue-50 border-blue-200 text-blue-400 cursor-not-allowed' 
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <Cloud className={`w-4 h-4 ${isCloudSyncing ? 'animate-pulse' : ''}`} />
+            {isCloudSyncing ? '동기화 중...' : '클라우드 업로드'}
+            {lastSyncTime && !isCloudSyncing && (
+                <span className="text-[10px] font-medium text-slate-400 ml-1">최근: {lastSyncTime.split(' ')[1]} {lastSyncTime.split(' ')[2]}</span>
+            )}
+          </button>
+          <div className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-2xl border border-emerald-100 flex items-center gap-2">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+            <span className="text-sm font-bold">오늘 내원 {patients.filter(p => {
+              const todayNorm = todayStr.replace(/-/g, '');
+              const lvNorm = (p.lastVisit || '').replace(/-/g, '');
+              const nrNorm = (p.nextRecallDate || '').replace(/-/g, '');
+              return lvNorm === todayNorm || nrNorm === todayNorm;
+            }).length}명</span>
+          </div>
         </div>
 
       </div>

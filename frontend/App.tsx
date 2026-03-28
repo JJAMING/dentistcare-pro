@@ -207,27 +207,34 @@ const Header = ({ notifications, searchTerm, setSearchTerm, searchResults, onRes
 
 const AuthPage = ({ onLogin }: { onLogin: (user: User) => void }) => {
   const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('의사');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLogin) {
-      const user = authService.login(name, password);
-      if (user) {
-        onLogin(user);
+    setLoading(true);
+    try {
+      if (isLogin) {
+        const user = await authService.login(email, password);
+        if (user) {
+          onLogin(user);
+        } else {
+          alert('이메일 또는 비밀번호가 일치하지 않습니다.');
+        }
       } else {
-        alert('이름 또는 비밀번호가 일치하지 않습니다.');
+        const success = await authService.signup(email, name, role, password);
+        if (success) {
+          alert('회원가입이 완료되었습니다. 로그인해주세요.');
+          setIsLogin(true);
+        } else {
+          alert('회원가입 중 오류가 발생했습니다.');
+        }
       }
-    } else {
-      const success = authService.signup(name, role, password);
-      if (success) {
-        alert('회원가입이 완료되었습니다. 로그인해주세요.');
-        setIsLogin(true);
-      } else {
-        alert('이미 존재하는 이름입니다.');
-      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -256,19 +263,36 @@ const AuthPage = ({ onLogin }: { onLogin: (user: User) => void }) => {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">사용자 이름</label>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">이메일 주소</label>
               <div className="relative">
-                <UserIcon className="w-5 h-5 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
+                <Search className="w-5 h-5 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
                 <input
-                  type="text"
+                  type="email"
                   required
-                  placeholder="이름을 입력하세요"
+                  placeholder="name@example.com"
                   className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-slate-800"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
             </div>
+
+            {!isLogin && (
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">사용자 이름</label>
+                <div className="relative">
+                  <UserIcon className="w-5 h-5 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="이름을 입력하세요"
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-slate-800"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
 
             {!isLogin && (
               <div className="space-y-2">
@@ -305,18 +329,25 @@ const AuthPage = ({ onLogin }: { onLogin: (user: User) => void }) => {
 
             <button
               type="submit"
-              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-100 transition-all flex items-center justify-center gap-2"
+              disabled={loading}
+              className={`w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-100 transition-all flex items-center justify-center gap-2 ${loading ? 'opacity-70 cursor-wait' : ''}`}
             >
-              {isLogin ? <Lock className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
-              {isLogin ? '시작하기' : '가입 완료'}
+              {loading ? (
+                <div className="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  {isLogin ? <Lock className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
+                  {isLogin ? '시작하기' : '가입 완료'}
+                </>
+              )}
             </button>
           </form>
         </div>
 
         <div className="bg-slate-50 p-8 border-t border-slate-100">
           <p className="text-center text-xs text-slate-400 leading-relaxed">
-            모든 데이터는 현재 기기의 브라우저 저장소(Local Storage)에 안전하게 보관됩니다.
-            개인정보 보호를 위해 공용 기기에서는 사용 후 반드시 로그아웃해 주세요.
+            모든 데이터는 파이어베이스 클라우드에 안전하게 보관되며,
+            치과별 고유 계정으로 격리되어 관리됩니다.
           </p>
         </div>
       </div>
@@ -332,6 +363,11 @@ const MainApp = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // 파이어베이스 인증 상태 변경 감지
+    const unsubscribe = authService.subscribeToAuthChanges((user) => {
+      setCurrentUser(user);
+    });
+
     if (currentUser) {
       const loadedPatients = storageService.getPatients();
       setPatients(loadedPatients);
@@ -349,6 +385,8 @@ const MainApp = () => {
         }));
       setNotifications(newNotifications);
     }
+
+    return () => unsubscribe();
   }, [currentUser]);
 
   const refreshPatients = useCallback(() => {
@@ -360,8 +398,8 @@ const MainApp = () => {
     navigate('/');
   };
 
-  const handleLogout = () => {
-    authService.logout();
+  const handleLogout = async () => {
+    await authService.logout();
     setCurrentUser(null);
     navigate('/');
   };

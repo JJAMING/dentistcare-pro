@@ -6,6 +6,8 @@ export interface User {
   name: string;
   role: UserRole;
   password?: string;
+  clinicId: string;   // 소속 치과 고유 ID
+  clinicName: string; // 소속 치과 이름
 }
 
 /** 수납 내역 단일 항목 */
@@ -54,6 +56,7 @@ export interface Patient {
   externalId?: string;
   isLinked?: boolean;
   recallExcluded?: boolean;  // 리콜 미설정 탭에서 제외 여부 (환자관리에서는 유지)
+  clinicId: string;          // 소속 치과 고유 ID
 }
 
 

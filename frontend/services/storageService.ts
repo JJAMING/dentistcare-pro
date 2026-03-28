@@ -1,5 +1,6 @@
 
 import { Patient } from '../types';
+import { authService } from './authService';
 
 const STORAGE_KEY = 'dentist_care_patients';
 const DOCTORS_KEY = 'dentist_care_doctors';
@@ -17,8 +18,13 @@ export const storageService = {
   },
 
   addPatient: (patient: Patient) => {
+    const user = authService.getCurrentUser();
     const patients = storageService.getPatients();
-    patients.push(patient);
+    const newPatient = { 
+      ...patient, 
+      clinicId: user?.clinicId || "baroom_dental" 
+    };
+    patients.push(newPatient);
     storageService.savePatients(patients);
   },
 

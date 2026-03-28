@@ -1,0 +1,51 @@
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, setDoc, writeBatch } from "firebase/firestore";
+import { getAnalytics } from "firebase/analytics";
+import { getAuth } from "firebase/auth";
+import { Patient, User } from '../types';
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyASn8cA59zSWf95-5zEAs62BLREaIgZ_HI",
+  authDomain: "dentistcarepro.firebaseapp.com",
+  projectId: "dentistcarepro",
+  storageBucket: "dentistcarepro.firebasestorage.app",
+  messagingSenderId: "838719559703",
+  appId: "1:838719559703:web:5f383190584af65c112452",
+  measurementId: "G-J69Z8ZZTTB"
+};
+
+const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
+
+export const firebaseService = {
+  /**
+   * 로컬 스토리지의 전체 데이터를 Firestore로 업로드 (일괄 동기화)
+   */
+  syncToCloud: async (patients: Patient[], doctors: string[]) => {
+    try {
+      const batch = writeBatch(db);
+
+      // 1. 환자 데이터 업로드 (ID를 문서 키로 사용)
+      patients.forEach((patient) => {
+        const patientRef = doc(db, 'patients', patient.id);
+        batch.set(patientRef, { 
+            ...patient, 
+            clinicId: "baroom_dental" // 바룸치과의원 고유 ID (논리적 연동용)
+        });
+      });
+
+      // 2. 원장 목록 업로드
+      const configRef = doc(db, 'config', 'doctors');
+      batch.set(configRef, { list: doctors, updatedAt: new Date().toISOString() });
+
+      await batch.commit();
+      return { success: true };
+    } catch (error) {
+      console.error('Cloud Sync error:', error);
+      throw error;
+    }
+  }
+};
