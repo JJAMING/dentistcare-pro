@@ -55,14 +55,14 @@ const Settings: React.FC = () => {
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
             {/* 헤더 */}
-            <div className="flex items-center justify-between bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                <div className="flex items-center gap-5">
-                    <div className="bg-slate-900 p-4 rounded-2xl shadow-lg shadow-slate-100">
-                        <SettingsIcon className="w-8 h-8 text-white" />
+            <div className="flex items-center justify-between bg-white p-6 lg:p-8 rounded-[1.5rem] lg:rounded-[2rem] shadow-sm border border-slate-100">
+                <div className="flex items-center gap-4 lg:gap-5">
+                    <div className="bg-slate-900 p-3 lg:p-4 rounded-xl lg:rounded-2xl shadow-lg shadow-slate-100 shrink-0">
+                        <SettingsIcon className="w-6 h-6 lg:w-8 lg:h-8 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">시스템 설정</h1>
-                        <p className="text-slate-500 font-medium mt-1">치과별 서버 연동 및 앱 환경 설정</p>
+                        <h1 className="text-xl lg:text-3xl font-black text-slate-900 tracking-tight">시스템 설정</h1>
+                        <p className="text-xs lg:text-sm text-slate-500 font-medium mt-0.5">치과별 서버 연동 및 환경 설정</p>
                     </div>
                 </div>
             </div>
@@ -85,13 +85,13 @@ const Settings: React.FC = () => {
 
                             <div className="space-y-6">
                                 <div className="space-y-3">
-                                    <label className="text-sm font-bold text-slate-500 ml-1">벡엔드 서버 주소 (API URL)</label>
-                                    <div className="flex gap-3">
+                                    <label className="text-xs lg:text-sm font-bold text-slate-500 ml-1">벡엔드 서버 주소 (API URL)</label>
+                                    <div className="flex flex-col sm:flex-row gap-3">
                                         <div className="relative flex-1">
-                                            <Server className="w-5 h-5 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
+                                            <Server className="w-4 h-4 lg:w-5 lg:h-5 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
                                             <input
                                                 type="text"
-                                                className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all font-medium text-slate-700"
+                                                className="w-full pl-11 lg:pl-12 pr-4 py-3.5 lg:py-4 bg-slate-50 border border-slate-200 rounded-xl lg:rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all font-medium text-slate-700 text-sm"
                                                 placeholder="http://192.168.0.10:3001"
                                                 value={apiUrl}
                                                 onChange={(e) => setApiUrl(e.target.value)}
@@ -100,13 +100,13 @@ const Settings: React.FC = () => {
                                         <button
                                             onClick={testConnection}
                                             disabled={isTesting}
-                                            className="px-6 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl font-bold transition-all flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
+                                            className="px-6 py-3.5 lg:py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl lg:rounded-2xl font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 text-sm"
                                         >
-                                            {isTesting ? <RefreshCw className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+                                            {isTesting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                                             {isTesting ? '연결 중...' : '연결 확인'}
                                         </button>
                                     </div>
-                                    <p className="text-xs text-slate-400 ml-1">
+                                    <p className="text-xs text-slate-400 ml-1 font-bold">
                                         기본값: http://localhost:3001 (동일 PC 실행 시)
                                     </p>
                                 </div>
@@ -137,10 +137,10 @@ const Settings: React.FC = () => {
                             <SettingsIcon className="w-5 h-5 text-indigo-300" />
                             다중 치과 연동 가이드
                         </h3>
-                        <div className="space-y-3 text-indigo-100 text-sm leading-relaxed font-medium">
+                        <div className="space-y-4 text-indigo-100 text-xs lg:text-sm leading-relaxed font-black">
                             <p>• 각 치과의 메인 PC에서 실행 중인 벡엔드 주소를 입력해 주세요.</p>
-                            <p>• 같은 네트워크(와이파이) 환경이라면 <b>내부 IP 주소</b>를 사용하면 됩니다.</p>
-                            <p>• 외부에서 접속하려면 Cloudflare Tunnel과 같은 <b>보안 주소</b>를 입력해 주세요.</p>
+                            <p>• 같은 네트워크(와이파이) 환경이라면 내부 IP 주소를 사용하면 됩니다.</p>
+                            <p>• 외부에서 접속하려면 Cloudflare Tunnel과 같은 보안 주소를 입력해 주세요.</p>
                             <p>• 설정된 주소는 현재 사용하는 웹 브라우저에만 적용됩니다.</p>
                         </div>
                     </div>
@@ -167,7 +167,7 @@ const Settings: React.FC = () => {
                     </div>
 
                     <div className="bg-slate-50 p-6 rounded-[2rem] border border-dashed border-slate-200">
-                        <p className="text-xs text-slate-400 leading-relaxed text-center font-medium">
+                        <p className="text-[11px] lg:text-xs text-slate-400 leading-relaxed text-center font-black">
                             설정 초기화가 필요하신 경우 브라우저의 캐시/데이터 삭제를 진행해 주세요.
                         </p>
                     </div>

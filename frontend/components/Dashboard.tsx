@@ -380,36 +380,36 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
     return (
       <div className="flex flex-col items-end gap-1.5">
         <div className="flex bg-slate-100 p-1 rounded-xl">
-          <button
-            onClick={() => { set('weekly'); }}
-            className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${current === 'weekly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >주간</button>
-          <button
-            onClick={() => { set('monthly'); }}
-            className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${current === 'monthly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >월간</button>
-          <button
-            onClick={() => { set('yearly'); }}
-            className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${current === 'yearly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >연간</button>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={onPrev}
-            className="p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-          </button>
-          <span className="text-[11px] font-bold text-slate-600 min-w-[96px] text-center">{label}</span>
-          <button
-            onClick={onNext}
-            disabled={isNextDisabled}
-            className={`p-1 rounded-lg transition-all ${isNextDisabled ? 'text-slate-300 cursor-not-allowed' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-800'
-              }`}
-          >
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
+            <button
+              onClick={() => { set('weekly'); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${current === 'weekly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >주간</button>
+            <button
+              onClick={() => { set('monthly'); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${current === 'monthly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >월간</button>
+            <button
+              onClick={() => { set('yearly'); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${current === 'yearly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >연간</button>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onPrev}
+              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-bold text-slate-600 min-w-[100px] text-center">{label}</span>
+            <button
+              onClick={onNext}
+              disabled={isNextDisabled}
+              className={`p-1.5 rounded-lg transition-all ${isNextDisabled ? 'text-slate-300 cursor-not-allowed' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-800'
+                }`}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
       </div>
     );
   };
@@ -452,7 +452,7 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
           <h2 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">종합 경영 대시보드</h2>
           <div className="flex flex-wrap items-center gap-2 mt-1">
             <p className="text-slate-500 text-sm font-medium">실시간 현황을 분석하여 병원을 관리하세요.</p>
-            <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg text-[10px] lg:text-xs font-black border border-blue-100">
+            <span className="text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg text-xs lg:text-sm font-black border border-blue-100">
               {authService.getCurrentUser()?.clinicName || '바룸치과의원'}
             </span>
           </div>
@@ -490,8 +490,8 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
             <Award className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
           </div>
           <div>
-            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">총 리콜 완료</p>
-            <p className="text-xl lg:text-2xl font-black text-blue-900">{totalCompletedRecallsCount}건</p>
+            <p className="text-xs font-bold text-blue-400 uppercase tracking-widest">총 리콜 완료</p>
+            <p className="text-xl lg:text-3xl font-black text-blue-900">{totalCompletedRecallsCount}건</p>
           </div>
         </div>
         <div
@@ -502,8 +502,8 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
             <Clock className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
           </div>
           <div>
-            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">오늘 리콜</p>
-            <p className="text-xl lg:text-2xl font-black text-indigo-700">{todayRecallsCount}명</p>
+            <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest">오늘 리콜</p>
+            <p className="text-xl lg:text-3xl font-black text-indigo-700">{todayRecallsCount}명</p>
           </div>
         </div>
         <div
@@ -514,8 +514,8 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
             <CheckCircle className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
           </div>
           <div>
-            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">이번 주 리콜</p>
-            <p className="text-xl lg:text-2xl font-black text-emerald-700">{thisWeekRecallsCount}명</p>
+            <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest">이번 주 리콜</p>
+            <p className="text-xl lg:text-3xl font-black text-emerald-700">{thisWeekRecallsCount}명</p>
           </div>
         </div>
       </div>
@@ -561,11 +561,11 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={pData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 13, fontWeight: 'bold' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 13, fontWeight: 'bold' }} />
                 <Tooltip
                   cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '13px' }}
                 />
                 <Bar dataKey="newPatients" name="신환" fill="#3b82f6" radius={[6, 6, 0, 0]} />
               </BarChart>
@@ -624,10 +624,10 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 13, fontWeight: 'bold' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 13, fontWeight: 'bold' }} />
                 <Tooltip
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '13px' }}
                   formatter={(val: number) => [`${val.toLocaleString()}만원`, '견적']}
                 />
                 <Area type="monotone" dataKey="amount" stroke="#6366f1" strokeWidth={3} fill="url(#colorAmt)" />
@@ -687,10 +687,10 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={rateData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} domain={[0, 100]} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 13, fontWeight: 'bold' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 13, fontWeight: 'bold' }} domain={[0, 100]} />
                 <Tooltip
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '13px' }}
                   formatter={(val: number) => [`${val}%`, '동의율']}
                 />
                 <Line
@@ -746,7 +746,7 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
                       const x = cx + radius * Math.cos(-midAngle * RADIAN);
                       const y = cy + radius * Math.sin(-midAngle * RADIAN);
                       return (
-                        <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight="bold">
+                        <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight="bold">
                           {`${(percent * 100).toFixed(0)}%`}
                         </text>
                       );

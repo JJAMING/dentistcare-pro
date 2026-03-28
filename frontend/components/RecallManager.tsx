@@ -202,12 +202,12 @@ const RecallManager: React.FC<RecallManagerProps> = ({ patients, onRefresh }) =>
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-3 lg:px-4 py-2 lg:py-2.5 rounded-xl text-[10px] lg:text-xs font-black transition-all border whitespace-nowrap ${activeTab === tab.key ? tab.activeColor : `border-transparent ${tab.color} hover:border-current`
+              className={`flex items-center gap-2 px-4 py-3 rounded-xl text-xs lg:text-sm font-black transition-all border whitespace-nowrap ${activeTab === tab.key ? tab.activeColor : `border-transparent ${tab.color} hover:border-current`
                 }`}
             >
-              {tab.icon}
+              {React.cloneElement(tab.icon as React.ReactElement, { className: 'w-4 h-4 lg:w-5 lg:h-5' })}
               {tab.label}
-              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? 'bg-white/20' : 'bg-current/10'
+              <span className={`text-[10px] lg:text-xs font-black px-2 py-0.5 rounded-full ${activeTab === tab.key ? 'bg-white/20' : 'bg-current/10'
                 }`}>
                 {tab.count}
               </span>
@@ -267,10 +267,10 @@ const RecallCard: React.FC<{
   };
 
   const badgeMap = {
-    unset: <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">미설정</span>,
-    overdue: <span className="text-[10px] font-black text-rose-600 bg-rose-100 px-2 py-0.5 rounded-full">기간 초과</span>,
-    today: <span className="text-[10px] font-black text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">오늘</span>,
-    upcoming: <span className="text-[10px] font-black text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">예정</span>,
+    unset: <span className="text-xs font-black text-slate-500 bg-slate-100 px-2 py-1 rounded-full">미설정</span>,
+    overdue: <span className="text-xs font-black text-rose-600 bg-rose-100 px-2 py-1 rounded-full">기간 초과</span>,
+    today: <span className="text-xs font-black text-blue-600 bg-blue-100 px-2 py-1 rounded-full">오늘</span>,
+    upcoming: <span className="text-xs font-black text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">예정</span>,
   };
 
   return (
@@ -283,13 +283,13 @@ const RecallCard: React.FC<{
           <p className="font-black text-slate-800">{patient.name}</p>
           {badgeMap[type]}
         </div>
-        <div className="flex items-center gap-1 text-xs text-slate-400 font-medium">
-          <Phone className="w-3 h-3 shrink-0" />
+        <div className="flex items-center gap-2 text-sm text-slate-400 font-medium">
+          <Phone className="w-4 h-4 shrink-0" />
           <span>{patient.phone}</span>
         </div>
         {patient.nextRecallDate ? (
-          <div className="flex items-center gap-1 mt-1 text-[11px] font-bold text-slate-500">
-            <Calendar className="w-3 h-3 shrink-0" />
+          <div className="flex items-center gap-2 mt-1.5 text-xs font-bold text-slate-500">
+            <Calendar className="w-4 h-4 shrink-0" />
             <span>리콜일: {patient.nextRecallDate}</span>
           </div>
         ) : null}
@@ -302,11 +302,11 @@ const RecallCard: React.FC<{
           const latest = allMemos[0];
           if (!latest) return null;
           return (
-            <div className="mt-2 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 space-y-1">
-              <span className="inline-block text-[10px] font-black text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full">
-                {latest.date}
+            <div className="mt-3 bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 space-y-2">
+              <span className="inline-block text-xs font-black text-teal-600 bg-teal-50 border border-teal-100 px-3 py-1 rounded-full shadow-sm">
+                최근 진료: {latest.date}
               </span>
-              <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2 whitespace-pre-wrap">
+              <p className="text-sm text-slate-600 leading-relaxed line-clamp-2 whitespace-pre-wrap font-bold">
                 {latest.content}
               </p>
             </div>
@@ -314,9 +314,9 @@ const RecallCard: React.FC<{
         })()}
         {/* 리콜 미설정 외: nextRecallContent(예약 내용) 표시 */}
         {type !== 'unset' && patient.nextRecallContent && (
-          <div className="flex items-start gap-1 mt-1.5 text-[11px] text-slate-400 bg-slate-50 px-2 py-1.5 rounded-xl border border-slate-100">
-            <MessageSquare className="w-3 h-3 shrink-0 mt-0.5" />
-            <span className="line-clamp-2 leading-relaxed">{patient.nextRecallContent}</span>
+          <div className="flex items-start gap-2 mt-2 text-xs text-slate-500 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
+            <MessageSquare className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" />
+            <span className="line-clamp-2 leading-relaxed font-medium">{patient.nextRecallContent}</span>
           </div>
         )}
 

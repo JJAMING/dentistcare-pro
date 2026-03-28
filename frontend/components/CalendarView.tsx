@@ -102,8 +102,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ patients }) => {
                     {date.getDate()}
                   </span>
                   {appointments.length > 0 && (
-                    <span className="text-[10px] font-bold text-slate-400">
-                      {appointments.length}건
+                    <span className="text-xs font-black text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-full">
+                      {appointments.length}
                     </span>
                   )}
                 </div>
@@ -113,14 +113,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({ patients }) => {
                     <div
                       key={p.id}
                       onClick={() => navigate(`/patient/${p.id}`)}
-                      className="p-1.5 rounded-lg bg-blue-50 border border-blue-100 hover:border-blue-300 cursor-pointer transition-all group/item shadow-sm"
+                      className="p-2 rounded-xl bg-blue-50 border border-blue-100 hover:border-blue-300 cursor-pointer transition-all group/item shadow-sm"
                     >
-                      <div className="flex items-center gap-1">
-                        <User className="w-2.5 h-2.5 text-blue-600" />
-                        <span className="text-[11px] font-bold text-blue-800 truncate">{p.name}</span>
+                      <div className="flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-blue-600" />
+                        <span className="text-xs lg:text-sm font-black text-blue-800 truncate">{p.name}</span>
                       </div>
                       {p.nextRecallContent && (
-                        <p className="text-[9px] text-blue-600 truncate mt-0.5 opacity-80 pl-3.5">
+                        <p className="text-[11px] text-blue-500 truncate mt-1 opacity-90 pl-5 font-bold">
                           {p.nextRecallContent}
                         </p>
                       )}

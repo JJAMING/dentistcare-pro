@@ -20,6 +20,7 @@ import { dentwebService, DentwebPatientRaw, DentwebAppointment } from '../servic
 interface PatientSearchProps {
   patients: Patient[];
   onRefresh: () => void;
+  user: any; // User type
 }
 
 /** HHmm -> HH:mm */
@@ -28,7 +29,7 @@ function formatTime(t: string) {
   return `${t.substring(0, 2)}:${t.substring(2, 4)}`;
 }
 
-const PatientSearch: React.FC<PatientSearchProps> = ({ patients, onRefresh }) => {
+const PatientSearch: React.FC<PatientSearchProps> = ({ patients, onRefresh, user }) => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [linkingId, setLinkingId] = useState<string | null>(null);
@@ -114,7 +115,8 @@ const PatientSearch: React.FC<PatientSearchProps> = ({ patients, onRefresh }) =>
       completedRecallDates: [],
       isLinked: true,
       externalId: `DW-${raw.chartNumber}`,
-      recallExcluded: false // 덴트웹 연동 기반으로 가져왔을 때 기본적으로 미설정 탭에 노출 (예약이 없으면)
+      recallExcluded: false,
+      clinicId: user.clinicId
     };
 
     storageService.savePatients([...currentPatients, newPatient]);
@@ -286,15 +288,15 @@ const PatientCard: React.FC<PatientCardProps> = ({
     <div className="flex-1 min-w-0 space-y-1">
       <div className="flex items-center gap-3 flex-wrap">
         <h3 className="text-xl font-black text-slate-800">{name}</h3>
-        <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">#{chartNumber}</span>
+        <span className="text-sm font-black text-slate-400 bg-slate-100 px-2 py-1 rounded-md">#{chartNumber}</span>
         {isLinked
-          ? <span className="flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100"><ShieldCheck className="w-3 h-3" />연동됨</span>
-          : <span className="text-[10px] font-black text-slate-400 bg-slate-50 px-2 py-1 rounded-full border border-slate-100">미연동</span>
+          ? <span className="flex items-center gap-1 text-xs font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100"><ShieldCheck className="w-3.5 h-3.5" />연동됨</span>
+          : <span className="text-xs font-black text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">미연동</span>
         }
       </div>
-      <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500 font-medium">
-        <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-slate-400" />{phone}</span>
-        {birthDate && <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-slate-400" />{birthDate}{gender ? ` (${gender})` : ''}</span>}
+      <div className="flex flex-wrap items-center gap-4 text-sm lg:text-base text-slate-500 font-bold">
+        <span className="flex items-center gap-2"><Phone className="w-4 h-4 text-slate-400" />{phone}</span>
+        {birthDate && <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-slate-400" />{birthDate}{gender ? ` (${gender})` : ''}</span>}
       </div>
     </div>
     <div className="flex items-center gap-3 w-full md:w-auto">
@@ -335,9 +337,9 @@ const DentwebCard: React.FC<DentwebCardProps> = ({ patient, appointment, isLinki
     <div className="flex-1 min-w-0 space-y-2">
       <div className="flex items-center gap-3 flex-wrap">
         <h3 className="text-xl font-black text-slate-800">{patient.name}</h3>
-        <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">#{patient.chartNumber}</span>
-        <span className="flex items-center gap-1 text-[10px] font-black text-blue-600 bg-blue-100 px-2 py-1 rounded-full border border-blue-200">
-          <LinkIcon className="w-3 h-3" />덴트웹
+        <span className="text-sm font-black text-slate-400 bg-slate-100 px-2 py-1 rounded-md">#{patient.chartNumber}</span>
+        <span className="flex items-center gap-1 text-xs font-black text-blue-600 bg-blue-100 px-2.5 py-1 rounded-full border border-blue-200">
+          <LinkIcon className="w-3.5 h-3.5" />덴트웹
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500 font-medium">
@@ -356,11 +358,11 @@ const DentwebCard: React.FC<DentwebCardProps> = ({ patient, appointment, isLinki
             <ClipboardList className="w-3.5 h-3.5" />
             다음 예약
           </div>
-          <p className="text-sm font-bold text-slate-700">
+          <p className="text-sm font-black text-slate-700">
             📅 {appointment.appointmentDate} {formatTime(appointment.appointmentTime || '')}
           </p>
           {(appointment.appointmentContent || appointment.memo) && (
-            <p className="text-xs text-slate-500 leading-relaxed">
+            <p className="text-sm text-slate-500 leading-relaxed font-bold">
               📋 {[appointment.appointmentContent, appointment.memo].filter(Boolean).join(' / ')}
             </p>
           )}

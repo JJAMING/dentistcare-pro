@@ -78,33 +78,33 @@ const Sidebar = ({ user, onLogout, isOpen, onClose }: { user: User, onLogout: ()
           </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2 mt-4 overflow-y-auto">
-          <Link to="/" onClick={onClose} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
-            <Activity className="w-5 h-5 text-slate-400" />
+        <nav className="flex-1 p-5 space-y-3 mt-4 overflow-y-auto">
+          <Link to="/" onClick={onClose} className="flex items-center gap-4 p-4 rounded-xl hover:bg-slate-800 transition-all font-black text-sm group">
+            <Activity className="w-5 h-5 text-slate-400 group-hover:text-blue-400" />
             <span>대시보드</span>
           </Link>
-          <Link to="/search" onClick={onClose} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
-            <Search className="w-5 h-5 text-slate-400" />
+          <Link to="/search" onClick={onClose} className="flex items-center gap-4 p-4 rounded-xl hover:bg-slate-800 transition-all font-black text-sm group">
+            <Search className="w-5 h-5 text-slate-400 group-hover:text-blue-400" />
             <span>환자 검색/연동</span>
           </Link>
-          <Link to="/patients" onClick={onClose} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
-            <Users className="w-5 h-5 text-slate-400" />
+          <Link to="/patients" onClick={onClose} className="flex items-center gap-4 p-4 rounded-xl hover:bg-slate-800 transition-all font-black text-sm group">
+            <Users className="w-5 h-5 text-slate-400 group-hover:text-blue-400" />
             <span>환자 관리</span>
           </Link>
-          <Link to="/recalls" onClick={onClose} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
-            <Bell className="w-5 h-5 text-slate-400" />
+          <Link to="/recalls" onClick={onClose} className="flex items-center gap-4 p-4 rounded-xl hover:bg-slate-800 transition-all font-black text-sm group">
+            <Bell className="w-5 h-5 text-slate-400 group-hover:text-blue-400" />
             <span>리콜 관리</span>
           </Link>
-          <Link to="/calendar" onClick={onClose} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
-            <Calendar className="w-5 h-5 text-slate-400" />
+          <Link to="/calendar" onClick={onClose} className="flex items-center gap-4 p-4 rounded-xl hover:bg-slate-800 transition-all font-black text-sm group">
+            <Calendar className="w-5 h-5 text-slate-400 group-hover:text-blue-400" />
             <span>예약 일정</span>
           </Link>
-          <Link to="/monthly-payments" onClick={onClose} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
-            <TrendingUp className="w-5 h-5 text-slate-400" />
+          <Link to="/monthly-payments" onClick={onClose} className="flex items-center gap-4 p-4 rounded-xl hover:bg-slate-800 transition-all font-black text-sm group">
+            <TrendingUp className="w-5 h-5 text-slate-400 group-hover:text-blue-400" />
             <span>월별 수납</span>
           </Link>
-          <Link to="/settings" onClick={onClose} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
-            <Settings className="w-5 h-5 text-slate-400" />
+          <Link to="/settings" onClick={onClose} className="flex items-center gap-4 p-4 rounded-xl hover:bg-slate-800 transition-all font-black text-sm group">
+            <Settings className="w-5 h-5 text-slate-400 group-hover:text-blue-400" />
             <span>설정</span>
           </Link>
         </nav>
@@ -199,7 +199,7 @@ const Header = ({ notifications, searchTerm, setSearchTerm, searchResults, onRes
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="font-bold text-slate-800 text-sm truncate">{p.name}</p>
-                          <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">#{p.chartNumber}</span>
+                          <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">#{p.chartNumber}</span>
                         </div>
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-300" />
@@ -220,7 +220,7 @@ const Header = ({ notifications, searchTerm, setSearchTerm, searchResults, onRes
         <div className="relative cursor-pointer">
           <Bell className="w-6 h-6 text-slate-600 hover:text-blue-500 transition-colors" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+            <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[11px] font-black px-1.5 py-0.5 rounded-full border-2 border-white min-w-[20px] text-center flex items-center justify-center">
               {unreadCount}
             </span>
           )}
@@ -524,7 +524,7 @@ const MainApp = () => {
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto bg-slate-50/30">
           <Routes>
             <Route path="/" element={<Dashboard patients={patients} />} />
-            <Route path="/search" element={<PatientSearch patients={patients} onRefresh={refreshPatients} />} />
+            <Route path="/search" element={<PatientSearch patients={patients} onRefresh={refreshPatients} user={currentUser} />} />
             <Route path="/patients" element={<PatientList patients={patients} onRefresh={refreshPatients} />} />
             <Route path="/patient/:id" element={<PatientDetail onRefresh={refreshPatients} />} />
             <Route path="/recalls" element={<RecallManager patients={patients} onRefresh={refreshPatients} />} />
