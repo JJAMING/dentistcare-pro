@@ -28,6 +28,7 @@ import {
 import { Patient, RecallNotification, User, UserRole } from './types';
 import { storageService } from './services/storageService';
 import { authService } from './services/authService';
+import { firebaseService } from './services/firebaseService';
 import PatientList from './components/PatientList';
 import PatientDetail from './components/PatientDetail';
 import Dashboard from './components/Dashboard';
@@ -404,7 +405,28 @@ const MainApp = () => {
 
     if (currentUser) {
       const loadedPatients = storageService.getPatients();
-      setPatients(loadedPatients);
+      
+      // 내 PC에 환자 데이터가 하나도 없을 때만 클라우드에서 가져오기 시도
+      if (loadedPatients.length === 0) {
+        const autoSync = async () => {
+          try {
+            const cloudPatients = await firebaseService.fetchFromCloud(currentUser.clinicId);
+            if (cloudPatients && cloudPatients.length > 0) {
+              storageService.savePatients(cloudPatients);
+              setPatients(cloudPatients);
+              alert(`${currentUser.clinicName}의 클라우드 데이터를 성공적으로 불러왔습니다!`);
+            } else {
+              setPatients([]);
+            }
+          } catch (error) {
+            console.error('Auto sync error:', error);
+            setPatients([]);
+          }
+        };
+        autoSync();
+      } else {
+        setPatients(loadedPatients);
+      }
 
       const today = new Date().toISOString().split('T')[0];
       const newNotifications: RecallNotification[] = loadedPatients

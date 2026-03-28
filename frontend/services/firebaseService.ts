@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, writeBatch } from "firebase/firestore";
+import { getFirestore, doc, setDoc, writeBatch, query, collection, where, getDocs } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 import { Patient, User } from '../types';
@@ -45,6 +45,24 @@ export const firebaseService = {
       return { success: true };
     } catch (error) {
       console.error('Cloud Sync error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Firestore에서 해당 치과의 전체 데이터를 가져오고 로컬 스토리지에 병합
+   */
+  fetchFromCloud: async (clinicId: string) => {
+    try {
+      const q = query(collection(db, 'patients'), where('clinicId', '==', clinicId));
+      const querySnapshot = await getDocs(q);
+      const patients: Patient[] = [];
+      querySnapshot.forEach((doc) => {
+        patients.push({ ...doc.data(), id: doc.id } as Patient);
+      });
+      return patients;
+    } catch (error) {
+      console.error('Cloud Fetch error:', error);
       throw error;
     }
   }
