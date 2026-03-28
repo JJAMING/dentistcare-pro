@@ -216,22 +216,36 @@ const AuthPage = ({ onLogin }: { onLogin: (user: User) => void }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 회원가입 시 비밀번호 유효성 검사 추가 (영문 + 숫자 + 특수문자 조합 8자 이상)
+    if (!isLogin) {
+      const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/;
+      if (!passwordRegex.test(password)) {
+        alert('비밀번호는 영문, 숫자, 특수문자를 포함하여 8자 이상이어야 합니다.');
+        return;
+      }
+      if (!clinicName.trim()) {
+        alert('치과 이름을 입력해 주세요.');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       if (isLogin) {
-        const user = await authService.login(email, password);
-        if (user) {
-          onLogin(user);
+        const result = await authService.login(email, password);
+        if (result.success && result.user) {
+          onLogin(result.user);
         } else {
-          alert('이메일 또는 비밀번호가 일치하지 않습니다.');
+          alert(result.message || '이메일 또는 비밀번호가 일치하지 않습니다.');
         }
       } else {
-        const success = await authService.signup(email, name, role, password, clinicName);
-        if (success) {
+        const result = await authService.signup(email, name, role, password, clinicName);
+        if (result.success) {
           alert('회원가입이 완료되었습니다. 로그인해주세요.');
           setIsLogin(true);
         } else {
-          alert('회원가입 중 오류가 발생했습니다.');
+          alert(result.message || '회원가입 중 오류가 발생했습니다.');
         }
       }
     } finally {
@@ -331,7 +345,9 @@ const AuthPage = ({ onLogin }: { onLogin: (user: User) => void }) => {
             )}
 
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">비밀번호</label>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">
+                비밀번호 {!isLogin && <span className="text-blue-500 font-medium normal-case ml-1">(영문/숫자/특수문자 8자 이상)</span>}
+              </label>
               <div className="relative">
                 <Lock className="w-5 h-5 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
                 <input
