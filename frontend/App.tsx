@@ -210,6 +210,7 @@ const AuthPage = ({ onLogin }: { onLogin: (user: User) => void }) => {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
+  const [clinicName, setClinicName] = useState('');
   const [role, setRole] = useState<UserRole>('의사');
   const [loading, setLoading] = useState(false);
 
@@ -225,7 +226,7 @@ const AuthPage = ({ onLogin }: { onLogin: (user: User) => void }) => {
           alert('이메일 또는 비밀번호가 일치하지 않습니다.');
         }
       } else {
-        const success = await authService.signup(email, name, role, password);
+        const success = await authService.signup(email, name, role, password, clinicName);
         if (success) {
           alert('회원가입이 완료되었습니다. 로그인해주세요.');
           setIsLogin(true);
@@ -289,6 +290,23 @@ const AuthPage = ({ onLogin }: { onLogin: (user: User) => void }) => {
                     className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-slate-800"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {!isLogin && (
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">치과 이름</label>
+                <div className="relative">
+                  <Activity className="w-5 h-5 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="병원명을 입력하세요"
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-slate-800"
+                    value={clinicName}
+                    onChange={(e) => setClinicName(e.target.value)}
                   />
                 </div>
               </div>

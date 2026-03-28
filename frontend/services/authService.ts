@@ -16,7 +16,7 @@ export const authService = {
   /**
    * 회원가입: Firebase Auth 계정 생성 + Firestore 프로필 저장
    */
-  signup: async (email: string, name: string, role: UserRole, password: string): Promise<boolean> => {
+  signup: async (email: string, name: string, role: UserRole, password: string, clinicName: string): Promise<boolean> => {
     try {
       // 1. Firebase Auth 계정 생성
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -27,8 +27,8 @@ export const authService = {
         id: firebaseUser.uid,
         name,
         role,
-        clinicId: "baroom_dental", // 초기 가입 시 '바룸치과의원'으로 자동 할당
-        clinicName: "바룸치과의원"
+        clinicId: `clinic_${crypto.randomUUID().slice(0, 8)}`, // 고유 치과 ID 생성
+        clinicName: clinicName // 입력받은 치과 이름 사용
       };
 
       await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
