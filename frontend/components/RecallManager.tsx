@@ -195,23 +195,25 @@ const RecallManager: React.FC<RecallManagerProps> = ({ patients, onRefresh }) =>
         </div>
       </div>
 
-      {/* 탭 */}
-      <div className="flex bg-white border border-slate-200 p-1 rounded-2xl w-fit gap-1 shadow-sm">
-        {tabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all border ${activeTab === tab.key ? tab.activeColor : `border-transparent ${tab.color} hover:border-current`
-              }`}
-          >
-            {tab.icon}
-            {tab.label}
-            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? 'bg-white/20' : 'bg-current/10'
-              }`}>
-              {tab.count}
-            </span>
-          </button>
-        ))}
+      {/* 탭 가로 스크롤 컨테이너 */}
+      <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
+        <div className="flex bg-white border border-slate-200 p-1 rounded-2xl w-fit gap-1 shadow-sm min-w-max">
+          {tabs.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-2 px-3 lg:px-4 py-2 lg:py-2.5 rounded-xl text-[10px] lg:text-xs font-black transition-all border whitespace-nowrap ${activeTab === tab.key ? tab.activeColor : `border-transparent ${tab.color} hover:border-current`
+                }`}
+            >
+              {tab.icon}
+              {tab.label}
+              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? 'bg-white/20' : 'bg-current/10'
+                }`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* 설명 텍스트 */}

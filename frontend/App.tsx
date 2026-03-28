@@ -23,7 +23,8 @@ import {
   TrendingUp,
   X,
   Phone,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Menu
 } from 'lucide-react';
 import { Patient, RecallNotification, User, UserRole } from './types';
 import { storageService } from './services/storageService';
@@ -38,7 +39,7 @@ import PatientSearch from './components/PatientSearch';
 import SettingsView from './components/Settings';
 import MonthlyPayments from './components/MonthlyPayments';
 
-const Sidebar = ({ user, onLogout }: { user: User, onLogout: () => void }) => {
+const Sidebar = ({ user, onLogout, isOpen, onClose }: { user: User, onLogout: () => void, isOpen: boolean, onClose: () => void }) => {
   const getRoleIcon = (role: UserRole) => {
     switch (role) {
       case '의사': return <Stethoscope className="w-5 h-5 text-blue-400" />;
@@ -50,64 +51,84 @@ const Sidebar = ({ user, onLogout }: { user: User, onLogout: () => void }) => {
   };
 
   return (
-    <div className="w-64 bg-slate-900 text-white flex flex-col h-screen sticky top-0">
-      <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-        <div className="bg-blue-500 p-2 rounded-lg">
-          <Activity className="w-6 h-6 text-white" />
-        </div>
-        <h1 className="text-xl font-bold tracking-tight">DentistCare</h1>
-      </div>
+    <>
+      {/* 모바일용 배경 오버레이 */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] lg:hidden animate-in fade-in duration-300"
+          onClick={onClose}
+        />
+      )}
 
-      <nav className="flex-1 p-4 space-y-2 mt-4">
-        <Link to="/" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
-          <Activity className="w-5 h-5 text-slate-400" />
-          <span>대시보드</span>
-        </Link>
-        <Link to="/search" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
-          <Search className="w-5 h-5 text-slate-400" />
-          <span>환자 검색/연동</span>
-        </Link>
-        <Link to="/patients" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
-          <Users className="w-5 h-5 text-slate-400" />
-          <span>환자 관리</span>
-        </Link>
-        <Link to="/recalls" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
-          <Bell className="w-5 h-5 text-slate-400" />
-          <span>리콜 관리</span>
-        </Link>
-        <Link to="/calendar" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
-          <Calendar className="w-5 h-5 text-slate-400" />
-          <span>예약 일정</span>
-        </Link>
-        <Link to="/monthly-payments" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
-          <TrendingUp className="w-5 h-5 text-slate-400" />
-          <span>월별 수납</span>
-        </Link>
-        <Link to="/settings" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
-          <Settings className="w-5 h-5 text-slate-400" />
-          <span>설정</span>
-        </Link>
-      </nav>
-
-      <div className="p-4 border-t border-slate-800">
-        <div className="flex items-center gap-3 p-2">
-          <div className="bg-slate-800 p-2 rounded-lg">
-            {getRoleIcon(user.role)}
+      {/* 사이드바 본체 */}
+      <div className={`
+        fixed inset-y-0 left-0 w-64 bg-slate-900 text-white flex flex-col h-screen z-[70] transition-transform duration-300 ease-in-out
+        lg:relative lg:translate-x-0 lg:z-0
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-500 p-2 rounded-lg">
+              <Activity className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight">DentistCare</h1>
           </div>
-          <div className="text-sm">
-            <p className="text-white font-bold">{user.name}</p>
-            <p className="text-xs text-slate-500">{user.role}</p>
-          </div>
+          <button onClick={onClose} className="lg:hidden p-2 text-slate-400 hover:text-white">
+            <X className="w-6 h-6" />
+          </button>
         </div>
-        <button
-          onClick={onLogout}
-          className="flex items-center gap-3 w-full p-3 mt-4 rounded-lg hover:bg-red-900/20 text-red-400 transition-colors font-medium"
-        >
-          <LogOut className="w-5 h-5" />
-          <span>로그아웃</span>
-        </button>
+
+        <nav className="flex-1 p-4 space-y-2 mt-4 overflow-y-auto">
+          <Link to="/" onClick={onClose} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
+            <Activity className="w-5 h-5 text-slate-400" />
+            <span>대시보드</span>
+          </Link>
+          <Link to="/search" onClick={onClose} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
+            <Search className="w-5 h-5 text-slate-400" />
+            <span>환자 검색/연동</span>
+          </Link>
+          <Link to="/patients" onClick={onClose} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
+            <Users className="w-5 h-5 text-slate-400" />
+            <span>환자 관리</span>
+          </Link>
+          <Link to="/recalls" onClick={onClose} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
+            <Bell className="w-5 h-5 text-slate-400" />
+            <span>리콜 관리</span>
+          </Link>
+          <Link to="/calendar" onClick={onClose} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
+            <Calendar className="w-5 h-5 text-slate-400" />
+            <span>예약 일정</span>
+          </Link>
+          <Link to="/monthly-payments" onClick={onClose} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
+            <TrendingUp className="w-5 h-5 text-slate-400" />
+            <span>월별 수납</span>
+          </Link>
+          <Link to="/settings" onClick={onClose} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
+            <Settings className="w-5 h-5 text-slate-400" />
+            <span>설정</span>
+          </Link>
+        </nav>
+
+        <div className="p-4 border-t border-slate-800">
+          <div className="flex items-center gap-3 p-2">
+            <div className="bg-slate-800 p-2 rounded-lg">
+              {getRoleIcon(user.role)}
+            </div>
+            <div className="text-sm">
+              <p className="text-white font-bold">{user.name}</p>
+              <p className="text-xs text-slate-500">{user.role}</p>
+            </div>
+          </div>
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-3 w-full p-3 mt-4 rounded-lg hover:bg-red-900/20 text-red-400 transition-colors font-medium"
+          >
+            <LogOut className="w-5 h-5" />
+            <span>로그아웃</span>
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
@@ -117,9 +138,10 @@ interface HeaderProps {
   setSearchTerm: (val: string) => void;
   searchResults: Patient[];
   onResultClick: (id: string) => void;
+  onMenuOpen: () => void;
 }
 
-const Header = ({ notifications, searchTerm, setSearchTerm, searchResults, onResultClick }: HeaderProps) => {
+const Header = ({ notifications, searchTerm, setSearchTerm, searchResults, onResultClick, onMenuOpen }: HeaderProps) => {
   const unreadCount = notifications.filter(n => !n.isRead).length;
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -134,62 +156,67 @@ const Header = ({ notifications, searchTerm, setSearchTerm, searchResults, onRes
   }, [setSearchTerm]);
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-50">
-      <div className="relative" ref={searchRef}>
-        <div className="flex items-center gap-4 bg-slate-50 border border-slate-200 rounded-full px-4 py-2 w-96 group focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all">
-          <Search className="w-4 h-4 text-slate-400 group-focus-within:text-blue-500" />
-          <input
-            type="text"
-            placeholder="차트번호 또는 이름 검색..."
-            className="bg-transparent border-none outline-none text-sm w-full font-medium"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-50">
+      <div className="flex items-center gap-3 flex-1">
+        <button 
+          onClick={onMenuOpen}
+          className="p-2 -ml-2 text-slate-500 hover:text-slate-900 lg:hidden"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+
+        <div className="relative flex-1 max-w-md" ref={searchRef}>
+          <div className="flex items-center gap-4 bg-slate-50 border border-slate-200 rounded-full px-4 py-2 group focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all">
+            <Search className="w-4 h-4 text-slate-400 group-focus-within:text-blue-500" />
+            <input
+              type="text"
+              placeholder="환자 검색..."
+              className="bg-transparent border-none outline-none text-sm w-full font-medium"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button onClick={() => setSearchTerm('')} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* 검색 결과 드롭다운 */}
           {searchTerm && (
-            <button onClick={() => setSearchTerm('')} className="text-slate-400 hover:text-slate-600">
-              <X className="w-4 h-4" />
-            </button>
+            <div className="absolute top-full left-0 w-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="max-h-80 overflow-y-auto">
+                {searchResults.length > 0 ? (
+                  searchResults.map(p => (
+                    <div
+                      key={p.id}
+                      onClick={() => onResultClick(p.id)}
+                      className="flex items-center gap-4 p-4 hover:bg-slate-50 cursor-pointer transition-colors border-b border-slate-50 last:border-0"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center font-bold text-blue-600 text-sm">
+                        {p.name[0]}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-slate-800 text-sm truncate">{p.name}</p>
+                          <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">#{p.chartNumber}</span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-300" />
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center text-slate-400 text-sm font-medium">
+                    검색 결과가 없습니다.
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
-
-        {/* 검색 결과 드롭다운 */}
-        {searchTerm && (
-          <div className="absolute top-full left-0 w-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-            <div className="max-h-80 overflow-y-auto">
-              {searchResults.length > 0 ? (
-                searchResults.map(p => (
-                  <div
-                    key={p.id}
-                    onClick={() => onResultClick(p.id)}
-                    className="flex items-center gap-4 p-4 hover:bg-slate-50 cursor-pointer transition-colors border-b border-slate-50 last:border-0"
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center font-bold text-blue-600 text-sm">
-                      {p.name[0]}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-slate-800 text-sm truncate">{p.name}</p>
-                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">#{p.chartNumber}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
-                        <Phone className="w-3 h-3" />
-                        {p.phone}
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-300" />
-                  </div>
-                ))
-              ) : (
-                <div className="p-8 text-center text-slate-400 text-sm font-medium">
-                  검색 결과가 없습니다.
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-3 lg:gap-6 ml-4">
         <div className="relative cursor-pointer">
           <Bell className="w-6 h-6 text-slate-600 hover:text-blue-500 transition-colors" />
           {unreadCount > 0 && (
@@ -395,6 +422,7 @@ const MainApp = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [notifications, setNotifications] = useState<RecallNotification[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -478,16 +506,22 @@ const MainApp = () => {
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar user={currentUser} onLogout={handleLogout} />
-      <div className="flex-1 flex flex-col">
+      <Sidebar 
+        user={currentUser} 
+        onLogout={handleLogout} 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+      />
+      <div className="flex-1 flex flex-col min-w-0">
         <Header
           notifications={notifications}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
           searchResults={filteredSearchResults}
           onResultClick={handleSearchResultClick}
+          onMenuOpen={() => setIsSidebarOpen(true)}
         />
-        <main className="flex-1 p-8 overflow-y-auto">
+        <main className="flex-1 p-4 lg:p-8 overflow-y-auto bg-slate-50/30">
           <Routes>
             <Route path="/" element={<Dashboard patients={patients} />} />
             <Route path="/search" element={<PatientSearch patients={patients} onRefresh={refreshPatients} />} />

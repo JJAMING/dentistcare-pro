@@ -15,7 +15,8 @@ import {
   Layers,
   TrendingUp,
   RefreshCw,
-  Bell
+  Bell,
+  ChevronRight
 } from 'lucide-react';
 import { Patient } from '../types';
 import { excelService } from '../services/excelService';
@@ -286,119 +287,92 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 relative">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black text-slate-800 tracking-tight">환자 관리</h2>
           <p className="text-slate-500 font-medium text-sm">등록된 전체 환자 목록 및 내원 기록을 관리하세요.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {isDailySyncing && (
-            <div className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-xs font-black text-blue-600 shadow-sm animate-pulse transition-all">
+            <div className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-[10px] font-black text-blue-600 shadow-sm animate-pulse transition-all">
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              실시간 동기화 중...
+              동기화 중...
             </div>
           )}
           <button
             onClick={handleSyncAll}
             disabled={isSyncingAll}
-            className={`flex items-center gap-2 px-3 py-2 border rounded-xl text-xs font-black shadow-sm transition-all ${isSyncingAll
+            className={`flex items-center gap-2 px-3 py-2 border rounded-xl text-[10px] font-black shadow-sm transition-all ${isSyncingAll
               ? 'bg-emerald-50 border-emerald-200 text-emerald-400 cursor-not-allowed'
               : 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100'
               }`}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncingAll ? 'animate-spin' : ''}`} />
-            {isSyncingAll ? `동기화 중... (${syncProgress.current}/${syncProgress.total})` : '전체 동기화'}
+            {isSyncingAll ? `${syncProgress.current}/${syncProgress.total}` : '전체 동기화'}
           </button>
           {/* 리콜 관리 버튼 */}
           <button
             onClick={() => navigate('/recalls')}
-            className="relative flex items-center gap-2 px-3 py-2 bg-rose-50 border border-rose-200 rounded-xl text-xs font-black text-rose-600 hover:bg-rose-100 shadow-sm transition-all"
+            className="relative flex items-center gap-2 px-3 py-2 bg-rose-50 border border-rose-200 rounded-xl text-[10px] font-black text-rose-600 hover:bg-rose-100 shadow-sm transition-all"
           >
             <Bell className="w-3.5 h-3.5" />
             리콜 관리
-            {(() => {
-              const today = new Date().toISOString().split('T')[0];
-              const needAttention = patients.filter(p =>
-                (!p.nextRecallDate && !p.recallExcluded) ||   // 리콜 미설정 (제외된 것 빼고)
-                (p.nextRecallDate && p.nextRecallDate < today) // 리콜 지남
-              ).length;
-              return needAttention > 0 ? (
-                <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">
-                  {needAttention}
-                </span>
-              ) : null;
-            })()}
           </button>
           <button
             onClick={() => navigate('/monthly-payments')}
-            className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-xs font-black text-indigo-600 hover:bg-indigo-100 shadow-sm transition-all"
+            className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-[10px] font-black text-indigo-600 hover:bg-indigo-100 shadow-sm transition-all"
           >
             <TrendingUp className="w-3.5 h-3.5" />
             월별 수납
           </button>
-          <label className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer shadow-sm transition-all">
+          <label className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 hover:bg-slate-50 cursor-pointer shadow-sm transition-all">
             <Upload className="w-3.5 h-3.5" />
-            엑셀 업로드
+            업로드
             <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleImport} disabled={isImporting} />
           </label>
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm transition-all"
-          >
-            <Download className="w-3.5 h-3.5" />
-            다운로드
-          </button>
         </div>
       </div>
 
       <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
         {/* 필터 제어 섹션 */}
-        <div className="p-6 border-b border-slate-100 bg-slate-50/30 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center bg-white p-1 rounded-2xl border border-slate-200 w-fit">
+        <div className="p-4 lg:p-6 border-b border-slate-100 bg-slate-50/30 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center bg-white p-1 rounded-2xl border border-slate-200 w-full xl:w-fit">
             <button
               onClick={() => setViewMode('all')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'all' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-            >
-              전체
-            </button>
+              className={`flex-1 xl:flex-none px-4 py-2 rounded-xl text-[11px] font-black transition-all ${viewMode === 'all' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+            >전체</button>
             <button
               onClick={() => setViewMode('daily')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'daily' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-            >
-              일별 내원
-            </button>
+              className={`flex-1 xl:flex-none px-4 py-2 rounded-xl text-[11px] font-black transition-all ${viewMode === 'daily' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+            >일별</button>
             <button
               onClick={() => setViewMode('monthly')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'monthly' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-            >
-              월별 내원
-            </button>
+              className={`flex-1 xl:flex-none px-4 py-2 rounded-xl text-[11px] font-black transition-all ${viewMode === 'monthly' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+            >월별</button>
             <button
               onClick={() => setViewMode('newMonthly')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'newMonthly' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-            >
-              신환 월별 내원
-            </button>
+              className={`flex-1 xl:flex-none px-4 py-2 rounded-xl text-[11px] font-black transition-all ${viewMode === 'newMonthly' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+            >신환</button>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
             {viewMode === 'daily' && (
-              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 animate-in slide-in-from-right-2 duration-300">
+              <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 w-full sm:w-auto animate-in slide-in-from-right-2 duration-300">
                 <Calendar className="w-4 h-4 text-blue-500" />
                 <input
                   type="date"
-                  className="text-sm font-bold text-slate-700 outline-none"
+                  className="text-xs font-bold text-slate-700 outline-none w-full"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                 />
               </div>
             )}
             {(viewMode === 'monthly' || viewMode === 'newMonthly') && (
-              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 animate-in slide-in-from-right-2 duration-300">
+              <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 w-full sm:w-auto animate-in slide-in-from-right-2 duration-300">
                 <Layers className="w-4 h-4 text-emerald-500" />
                 <input
                   type="month"
-                  className="text-sm font-bold text-slate-700 outline-none"
+                  className="text-xs font-bold text-slate-700 outline-none w-full"
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
                 />
@@ -417,7 +391,49 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* 모바일 용 카드 뷰 */}
+        <div className="block lg:hidden divide-y divide-slate-100">
+          {filteredPatients.map((patient) => (
+            <div
+              key={patient.id}
+              onClick={() => navigate(`/patient/${patient.id}`)}
+              className="p-5 hover:bg-blue-50 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-black text-xs">
+                    {patient.name[0]}
+                  </div>
+                  <div>
+                    <p className="font-black text-slate-800 text-base">{patient.name}</p>
+                    <p className="text-[10px] font-bold text-slate-400">#{patient.chartNumber}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={(e) => openDeleteModal(patient.id, patient.name, e)}
+                    className="p-2 text-slate-300 hover:text-rose-500"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <ChevronRight className="w-5 h-5 text-slate-300" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">최근 방문</p>
+                  <p className="text-xs font-bold text-slate-700">{patient.lastVisit || '-'}</p>
+                </div>
+                <div className={`${patient.nextRecallDate && patient.nextRecallDate <= new Date().toISOString().split('T')[0] ? 'bg-rose-50 border-rose-100' : 'bg-blue-50 border-blue-100'} p-2.5 rounded-xl border`}>
+                  <p className={`text-[10px] font-bold ${patient.nextRecallDate && patient.nextRecallDate <= new Date().toISOString().split('T')[0] ? 'text-rose-400' : 'text-blue-400'} uppercase mb-1`}>다음 리콜</p>
+                  <p className={`text-xs font-bold ${patient.nextRecallDate && patient.nextRecallDate <= new Date().toISOString().split('T')[0] ? 'text-rose-600' : 'text-blue-600'}`}>{patient.nextRecallDate || '-'}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-50/50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">

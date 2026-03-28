@@ -446,22 +446,22 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 pb-16">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+    <div className="space-y-6 lg:space-y-8 animate-in fade-in duration-700 pb-16">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">종합 경영 대시보드</h2>
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-slate-500 font-medium">실시간 환자 유입 및 리콜 현황을 분석하여 병원을 관리하세요.</p>
-            <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg text-xs font-black border border-blue-100">
+          <h2 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">종합 경영 대시보드</h2>
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <p className="text-slate-500 text-sm font-medium">실시간 현황을 분석하여 병원을 관리하세요.</p>
+            <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg text-[10px] lg:text-xs font-black border border-blue-100">
               {authService.getCurrentUser()?.clinicName || '바룸치과의원'}
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 lg:gap-3">
           <button
             onClick={handleCloudSync}
             disabled={isCloudSyncing}
-            className={`flex items-center gap-2 px-4 py-2 rounded-2xl border text-sm font-black shadow-sm transition-all ${
+            className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border text-sm font-black shadow-sm transition-all ${
               isCloudSyncing 
                 ? 'bg-blue-50 border-blue-200 text-blue-400 cursor-not-allowed' 
                 : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -469,63 +469,58 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
           >
             <Cloud className={`w-4 h-4 ${isCloudSyncing ? 'animate-pulse' : ''}`} />
             {isCloudSyncing ? '동기화 중...' : '클라우드 업로드'}
-            {lastSyncTime && !isCloudSyncing && (
-                <span className="text-[10px] font-medium text-slate-400 ml-1">최근: {lastSyncTime.split(' ')[1]} {lastSyncTime.split(' ')[2]}</span>
-            )}
           </button>
-          <div className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-2xl border border-emerald-100 flex items-center gap-2">
+          <div className="flex-1 lg:flex-none bg-emerald-50 text-emerald-700 px-4 py-2.5 rounded-2xl border border-emerald-100 flex items-center justify-center gap-2">
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-sm font-bold">오늘 내원 {patients.filter(p => {
+            <span className="text-sm font-bold whitespace-nowrap">오늘 {patients.filter(p => {
               const todayNorm = todayStr.replace(/-/g, '');
               const lvNorm = (p.lastVisit || '').replace(/-/g, '');
-              const nrNorm = (p.nextRecallDate || '').replace(/-/g, '');
-              return lvNorm === todayNorm || nrNorm === todayNorm;
-            }).length}명</span>
+              return lvNorm === todayNorm;
+            }).length}명 내원</span>
           </div>
         </div>
-
       </div>
 
-      <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="bg-white p-4 lg:p-6 rounded-[2rem] border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
         <div
           onClick={() => openRecallModal('리콜 완료 환자 명단', totalCompletedRecallsList)}
-          className="flex items-center gap-4 p-5 bg-blue-50 rounded-2xl border border-blue-100 cursor-pointer hover:bg-blue-100 transition-all hover:scale-[1.02] group"
+          className="flex items-center gap-4 p-4 lg:p-5 bg-blue-50 rounded-2xl border border-blue-100 cursor-pointer hover:bg-blue-100 transition-all hover:scale-[1.02] group"
         >
-          <div className="bg-blue-600 p-3 rounded-xl shadow-lg shadow-blue-100 group-hover:rotate-6 transition-transform">
-            <Award className="w-6 h-6 text-white" />
+          <div className="bg-blue-600 p-2.5 lg:p-3 rounded-xl shadow-lg shadow-blue-100 group-hover:rotate-6 transition-transform">
+            <Award className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
           </div>
           <div>
-            <p className="text-xs font-bold text-blue-400 uppercase tracking-widest">총 리콜 완료</p>
-            <p className="text-2xl font-black text-blue-900">{totalCompletedRecallsCount}건</p>
+            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">총 리콜 완료</p>
+            <p className="text-xl lg:text-2xl font-black text-blue-900">{totalCompletedRecallsCount}건</p>
           </div>
         </div>
         <div
           onClick={() => openRecallModal('오늘 리콜 명단', todayRecallsList)}
-          className="flex items-center gap-4 p-5 bg-indigo-50 rounded-2xl border border-indigo-100 cursor-pointer hover:bg-indigo-100 transition-all hover:scale-[1.02] group"
+          className="flex items-center gap-4 p-4 lg:p-5 bg-indigo-50 rounded-2xl border border-indigo-100 cursor-pointer hover:bg-indigo-100 transition-all hover:scale-[1.02] group"
         >
-          <div className="bg-indigo-600 p-3 rounded-xl shadow-lg shadow-indigo-100 group-hover:rotate-6 transition-transform">
-            <Clock className="w-6 h-6 text-white" />
+          <div className="bg-indigo-600 p-2.5 lg:p-3 rounded-xl shadow-lg shadow-indigo-100 group-hover:rotate-6 transition-transform">
+            <Clock className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
           </div>
           <div>
-            <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest">오늘 리콜</p>
-            <p className="text-2xl font-black text-indigo-700">{todayRecallsCount}명</p>
+            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">오늘 리콜</p>
+            <p className="text-xl lg:text-2xl font-black text-indigo-700">{todayRecallsCount}명</p>
           </div>
         </div>
         <div
           onClick={() => openRecallModal('이번 주 리콜 명단', thisWeekRecallsList)}
-          className="flex items-center gap-4 p-5 bg-emerald-50 rounded-2xl border border-emerald-100 cursor-pointer hover:bg-emerald-100 transition-all hover:scale-[1.02] group"
+          className="flex items-center gap-4 p-4 lg:p-5 bg-emerald-50 rounded-2xl border border-emerald-100 cursor-pointer hover:bg-emerald-100 transition-all hover:scale-[1.02] group"
         >
-          <div className="bg-emerald-600 p-3 rounded-xl shadow-lg shadow-emerald-100 group-hover:rotate-6 transition-transform">
-            <CheckCircle className="w-6 h-6 text-white" />
+          <div className="bg-emerald-600 p-2.5 lg:p-3 rounded-xl shadow-lg shadow-emerald-100 group-hover:rotate-6 transition-transform">
+            <CheckCircle className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
           </div>
           <div>
-            <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest">이번 주 리콜</p>
-            <p className="text-2xl font-black text-emerald-700">{thisWeekRecallsCount}명</p>
+            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">이번 주 리콜</p>
+            <p className="text-xl lg:text-2xl font-black text-emerald-700">{thisWeekRecallsCount}명</p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
         {/* 1. 환자 유입 현황 */}
         <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all group">
           <div className="flex items-center justify-between mb-6">

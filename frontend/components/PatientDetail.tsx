@@ -328,21 +328,21 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
   const age = calculateAge(patient.birthDate);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4 animate-in fade-in duration-500 h-[calc(100vh-120px)] flex flex-col">
-      <div className="flex items-center justify-between shrink-0">
+    <div className="max-w-6xl mx-auto space-y-4 animate-in fade-in duration-500 min-h-[calc(100vh-120px)] lg:h-[calc(100vh-120px)] flex flex-col pb-20 lg:pb-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <button
           onClick={() => navigate('/patients')}
-          className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors text-sm"
+          className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors text-sm w-fit"
         >
           <ArrowLeft className="w-4 h-4" />
           뒤로가기
         </button>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 lg:gap-3">
           {/* 덴트웹 연동 환자 전용 동기화 버튼 */}
           {!isNew && patient.isLinked && patient.externalId?.startsWith('DW-') && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               {syncMessage && (
-                <span className={`text-xs font-bold px-3 py-1 rounded-full ${syncMessage.startsWith('⚠️')
+                <span className={`text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap ${syncMessage.startsWith('⚠️')
                   ? 'bg-red-50 text-red-500 border border-red-100'
                   : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                   }`}>
@@ -352,51 +352,51 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
               <button
                 onClick={handleDentwebSync}
                 disabled={isSyncing}
-                className="flex items-center gap-2 px-4 py-1.5 bg-blue-50 text-blue-600 rounded-xl font-bold hover:bg-blue-100 transition-all border border-blue-200 text-xs disabled:opacity-60"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-xl font-bold hover:bg-blue-100 transition-all border border-blue-200 text-[10px] sm:text-xs disabled:opacity-60"
                 title="덴트웹에서 최신 예약 정보 가져오기"
               >
                 {isSyncing
                   ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                   : <LinkIcon className="w-3.5 h-3.5" />
                 }
-                {isSyncing ? '동기화 중...' : '덴트웹 동기화'}
+                {isSyncing ? '동기화...' : '덴트웹'}
               </button>
             </div>
           )}
           {!isNew && !patient.nextRecallDate && patient.recallExcluded === true && (
             <button
               onClick={handleAddToRecallUnset}
-              className="flex items-center gap-2 px-4 py-1.5 bg-amber-50 text-amber-700 rounded-xl font-bold hover:bg-amber-100 transition-all border border-amber-200 text-xs"
+              className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-xl font-bold hover:bg-amber-100 transition-all border border-amber-200 text-[10px] sm:text-xs"
             >
               <Bell className="w-3.5 h-3.5" />
-              리콜 미설정으로 추가
+              미설정으로
             </button>
           )}
           {/* 리콜일이 있을 때, '완료'와 '미설정' 액션 제공 */}
           {patient.nextRecallDate && (
-            <>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={handleUnsetRecall}
-                className="flex items-center gap-2 px-4 py-1.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all border border-slate-200 text-xs"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all border border-slate-200 text-[10px] sm:text-xs"
               >
                 <X className="w-3.5 h-3.5" />
-                리콜 미설정
+                미설정
               </button>
               <button
                 onClick={handleCompleteRecall}
-                className="flex items-center gap-2 px-4 py-1.5 bg-emerald-100 text-emerald-700 rounded-xl font-bold hover:bg-emerald-200 transition-all border border-emerald-200 text-xs"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-xl font-bold hover:bg-emerald-200 transition-all border border-emerald-200 text-[10px] sm:text-xs"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                리콜 완료
+                완료
               </button>
-            </>
+            </div>
           )}
           <button
             onClick={handleSave}
-            className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 text-xs"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 text-xs"
           >
             <Save className="w-3.5 h-3.5" />
-            환자 정보 저장
+            저장하기
           </button>
         </div>
       </div>
