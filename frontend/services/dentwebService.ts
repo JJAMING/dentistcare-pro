@@ -1,4 +1,5 @@
 import { Patient } from '../types';
+import { auth } from './firebaseService';
 
 /** 덴트웹 백엔드 서버 주소를 동적으로 가져옵니다 (설정에서 변경 가능) */
 const getBaseUrl = () => {
@@ -7,6 +8,16 @@ const getBaseUrl = () => {
 };
 
 const getApiUrl = () => `${getBaseUrl()}/api`;
+
+/** 공통 인증 헤더 생성 */
+const getAuthHeaders = async () => {
+    const user = auth.currentUser;
+    const token = user ? await user.getIdToken() : '';
+    return {
+        'Authorization': `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true'
+    };
+};
 
 /** 덴트웹 환자 검색 결과 원형 (백엔드 반환 형태) */
 export interface DentwebPatientRaw {
@@ -49,11 +60,14 @@ export const dentwebService = {
     searchPatients: async (query: string): Promise<DentwebPatientRaw[]> => {
         if (!query || query.length < 2) return [];
         try {
+            const headers = await getAuthHeaders();
             const res = await fetch(`${getApiUrl()}/dentweb/patients?query=${encodeURIComponent(query)}`, {
-                headers: {
-                    'ngrok-skip-browser-warning': 'true'
-                }
+                headers
             });
+            if (res.status === 401 || res.status === 403) {
+                console.error('인증 오류: 백엔드 접근 권한이 없습니다.');
+                return [];
+            }
             if (!res.ok) throw new Error('덴트웹 서버 연결 실패');
             return await res.json();
         } catch (err) {
@@ -67,10 +81,9 @@ export const dentwebService = {
      */
     getNextAppointment: async (patientId: number): Promise<DentwebAppointment> => {
         try {
+            const headers = await getAuthHeaders();
             const res = await fetch(`${getApiUrl()}/dentweb/appointments/${patientId}`, {
-                headers: {
-                    'ngrok-skip-browser-warning': 'true'
-                }
+                headers
             });
             if (!res.ok) return { hasAppointment: false };
             return await res.json();
@@ -128,10 +141,9 @@ export const dentwebService = {
      */
     syncDailyPatients: async (date: string): Promise<DentwebSyncResult[]> => {
         try {
+            const headers = await getAuthHeaders();
             const res = await fetch(`${getApiUrl()}/dentweb/daily-sync?date=${date}`, {
-                headers: {
-                    'ngrok-skip-browser-warning': 'true'
-                }
+                headers
             });
             if (!res.ok) throw new Error('덴트웹 서버 연결 실패');
             

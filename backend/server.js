@@ -3,6 +3,13 @@ const mssql = require('mssql');
 const cors = require('cors');
 require('dotenv').config();
 
+const { verifyToken } = require('./middleware/authMiddleware');
+const { 
+    patientSearchRules, 
+    patientIdRules, 
+    dailySyncRules 
+} = require('./middleware/validationMiddleware');
+
 const app = express();
 const port = process.env.PORT || 3001;
 
@@ -47,9 +54,8 @@ function formatAppointmentDate(raw) {
 //    GET /api/dentweb/patients?query=홍길동
 //    PUB_V환자정보에서 검색하며 생년월일 포함 반환
 // ────────────────────────────────────────
-app.get('/api/dentweb/patients', async (req, res) => {
+app.get('/api/dentweb/patients', verifyToken, patientSearchRules, async (req, res) => {
     const { query } = req.query;
-    if (!query) return res.status(400).json({ error: 'query parameter is required' });
 
     try {
         const pool = await mssql.connect(dbConfig);
@@ -89,9 +95,8 @@ app.get('/api/dentweb/patients', async (req, res) => {
 //    GET /api/dentweb/appointments/:patientId
 //    PUB_V예약정보에서 n이행현황=0 (미이행) 이고 미래 예약 중 가장 가까운 건 반환
 // ────────────────────────────────────────
-app.get('/api/dentweb/appointments/:patientId', async (req, res) => {
+app.get('/api/dentweb/appointments/:patientId', verifyToken, patientIdRules, async (req, res) => {
     const { patientId } = req.params;
-    if (!patientId) return res.status(400).json({ error: 'patientId is required' });
 
     try {
         const pool = await mssql.connect(dbConfig);
@@ -146,9 +151,8 @@ app.get('/api/dentweb/appointments/:patientId', async (req, res) => {
 //    GET /api/dentweb/daily-sync?date=YYYY-MM-DD
 //    해당 날짜에 최종내원일이거나 예약이 있는 모든 환자 정보 및 최신 다음예약 반환
 // ────────────────────────────────────────
-app.get('/api/dentweb/daily-sync', async (req, res) => {
+app.get('/api/dentweb/daily-sync', verifyToken, dailySyncRules, async (req, res) => {
     const { date } = req.query; // '2026-03-24' 형태
-    if (!date) return res.status(400).json({ error: 'date parameter is required' });
 
     try {
         const pool = await mssql.connect(dbConfig);
