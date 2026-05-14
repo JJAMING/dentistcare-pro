@@ -26,7 +26,7 @@ import {
   CreditCard,
   Bell
 } from 'lucide-react';
-import { Patient, Treatment, Payment, TreatmentMemo } from '../types';
+import { Patient, Treatment, Payment, DeletedPayment, TreatmentMemo } from '../types';
 import { storageService } from '../services/storageService';
 import { geminiService } from '../services/geminiService';
 import { dentwebService } from '../services/dentwebService';
@@ -746,8 +746,13 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
                 {/* ── 수납 내역 섹션 */}
                 {(() => {
                   const payments = t.payments || [];
+                  const deletedPayments = t.deletedPayments || [];
                   // 수납 합계 (숫자 파싱, NaN 제외)
                   const totalPaid = payments.reduce((sum, p) => {
+                    const n = parseFloat(p.amount.replace(/[^0-9.]/g, ''));
+                    return sum + (isNaN(n) ? 0 : n);
+                  }, 0);
+                  const deletedTotal = deletedPayments.reduce((sum, p) => {
                     const n = parseFloat(p.amount.replace(/[^0-9.]/g, ''));
                     return sum + (isNaN(n) ? 0 : n);
                   }, 0);
@@ -777,7 +782,31 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
                   };
 
                   const removePayment = (pid: string) => {
-                    updateTreatment(t.id, 'payments', payments.filter(p => p.id !== pid));
+                    const paymentToRemove = payments.find(p => p.id === pid);
+                    if (!paymentToRemove) return;
+
+                    const deletedPayment: DeletedPayment = {
+                      ...paymentToRemove,
+                      id: crypto.randomUUID(),
+                      originalPaymentId: paymentToRemove.id,
+                      deletedAt: new Date().toISOString()
+                    };
+
+                    setPatient({
+                      ...patient,
+                      treatments: patient.treatments.map(treatment =>
+                        treatment.id === t.id
+                          ? {
+                            ...treatment,
+                            payments: payments.filter(p => p.id !== pid),
+                            deletedPayments: [...(treatment.deletedPayments || []), deletedPayment]
+                          }
+                          : treatment
+                      )
+                    });
+                    if (editingPaymentId === pid) {
+                      setEditingPaymentId(null);
+                    }
                   };
 
                   return (
@@ -790,6 +819,11 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
                           {payments.length > 0 && (
                             <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full border border-indigo-100">
                               수납 {totalPaid.toLocaleString()}원
+                            </span>
+                          )}
+                          {deletedPayments.length > 0 && (
+                            <span className="text-[9px] font-black text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-100">
+                              삭제 {deletedTotal.toLocaleString()}원
                             </span>
                           )}
                         </div>
@@ -911,6 +945,44 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
                       })}
 
                       {/* 잔액 표시 */}
+                      {deletedPayments.length > 0 && (
+                        <div className="space-y-1 pt-1">
+                          <div className="flex items-center gap-1 px-1">
+                            <Trash2 className="w-3 h-3 text-red-300" />
+                            <span className="text-[9px] font-black text-red-400 uppercase tracking-wider">삭제된 수납 내역</span>
+                          </div>
+                          {deletedPayments.map((p) => {
+                            const deletedAtLabel = p.deletedAt
+                              ? new Date(p.deletedAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+                              : '';
+
+                            return (
+                              <div key={p.id} className="flex items-center gap-2 bg-red-50/70 rounded-xl px-3 py-2 border border-red-100">
+                                <X className="w-3 h-3 text-red-300 shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-black text-red-600 line-through">
+                                      {p.amount ? Number(p.amount.replace(/[^0-9]/g, '')).toLocaleString() : '0'}원
+                                    </span>
+                                    <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-red-50">
+                                      {p.date}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    {p.note && (
+                                      <span className="text-[10px] text-slate-400 italic truncate">{p.note}</span>
+                                    )}
+                                    {deletedAtLabel && (
+                                      <span className="text-[10px] text-red-300 font-bold">삭제: {deletedAtLabel}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
                       {remaining !== null && (
                         <div className={`flex items-center justify-between rounded-xl px-3 py-2 border ${remaining === 0
                           ? 'bg-emerald-50 border-emerald-100'

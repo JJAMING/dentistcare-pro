@@ -19,6 +19,11 @@ export interface Payment {
 }
 
 /** 진료 내역 메모 단일 항목 */
+export interface DeletedPayment extends Payment {
+  originalPaymentId: string;
+  deletedAt: string;
+}
+
 export interface TreatmentMemo {
   id: string;
   date: string;     // 메모 날짜 'YYYY-MM-DD'
@@ -34,6 +39,7 @@ export interface Treatment {
   memos?: TreatmentMemo[];  // 진료 내역 메모 (다중)
   estimatedAmount?: string;
   payments?: Payment[];   // 수납 내역 (다중)
+  deletedPayments?: DeletedPayment[];
   isAgreed?: boolean;
 }
 
