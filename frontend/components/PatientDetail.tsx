@@ -809,6 +809,10 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
                     }
                   };
 
+                  const removeDeletedPayment = (pid: string) => {
+                    updateTreatment(t.id, 'deletedPayments', deletedPayments.filter(p => p.id !== pid));
+                  };
+
                   return (
                     <div className="space-y-2 pt-1">
                       {/* 헤더 */}
@@ -957,7 +961,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
                               : '';
 
                             return (
-                              <div key={p.id} className="flex items-center gap-2 bg-red-50/70 rounded-xl px-3 py-2 border border-red-100">
+                              <div key={p.id} className="flex items-center gap-2 bg-red-50/70 rounded-xl px-3 py-2 border border-red-100 group/deleted-payment">
                                 <X className="w-3 h-3 text-red-300 shrink-0" />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
@@ -977,6 +981,18 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
                                     )}
                                   </div>
                                 </div>
+                                <button
+                                  onClick={() =>
+                                    askConfirm(
+                                      `삭제된 수납 내역을 완전히 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`,
+                                      () => removeDeletedPayment(p.id)
+                                    )
+                                  }
+                                  className="p-1.5 text-red-300 hover:text-red-600 opacity-100 sm:opacity-0 sm:group-hover/deleted-payment:opacity-100 transition-all hover:bg-red-100 rounded-lg shrink-0"
+                                  title="삭제된 수납 내역 삭제"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
                               </div>
                             );
                           })}
