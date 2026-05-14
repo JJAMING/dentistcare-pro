@@ -16,9 +16,10 @@ import {
     MapPin,
     CalendarDays,
     CheckSquare,
-    Square
+    Square,
+    Trash2
 } from 'lucide-react';
-import { Patient, Payment } from '../types';
+import { Patient } from '../types';
 
 interface MonthlyPaymentsProps {
     patients: Patient[];
@@ -33,6 +34,7 @@ interface PaymentEntry {
     paymentDate: string;
     paymentAmount: number;
     paymentNote: string;
+    deletedAt?: string;
 }
 
 const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
@@ -110,6 +112,37 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
         return entries;
     }, [patients, selectedYear, selectedMonth]);
 
+    const deletedMonthlyEntries = useMemo<PaymentEntry[]>(() => {
+        const entries: PaymentEntry[] = [];
+        const yearMonth = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+
+        patients.forEach(patient => {
+            (patient.treatments || []).forEach(treatment => {
+                (treatment.deletedPayments || []).forEach(payment => {
+                    if (payment.date && payment.date.startsWith(yearMonth)) {
+                        const amount = parseFloat((payment.amount || '0').replace(/[^0-9.]/g, ''));
+                        if (!isNaN(amount) && amount > 0) {
+                            entries.push({
+                                patientId: patient.id,
+                                patientName: patient.name,
+                                chartNumber: patient.chartNumber,
+                                phone: patient.phone,
+                                treatmentContent: treatment.content || '(誘몄엯??',
+                                paymentDate: payment.date,
+                                paymentAmount: amount,
+                                paymentNote: payment.note || '',
+                                deletedAt: payment.deletedAt
+                            });
+                        }
+                    }
+                });
+            });
+        });
+
+        entries.sort((a, b) => a.paymentDate.localeCompare(b.paymentDate));
+        return entries;
+    }, [patients, selectedYear, selectedMonth]);
+
     // 일자별 그룹핑
     const groupedByDate = useMemo(() => {
         const groups: Record<string, PaymentEntry[]> = {};
@@ -143,8 +176,11 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
     }, [monthlyEntries]);
 
     const totalRevenue = monthlyEntries.reduce((sum, e) => sum + e.paymentAmount, 0);
+    const totalDeletedAmount = deletedMonthlyEntries.reduce((sum, e) => sum + e.paymentAmount, 0);
     const totalPatients = patientTotals.length;
     const totalTransactions = monthlyEntries.length;
+    const totalDeletedTransactions = deletedMonthlyEntries.length;
+    const hasAnyEntries = monthlyEntries.length > 0 || deletedMonthlyEntries.length > 0;
 
     // CSV 내보내기
     const handleExportCSV = () => {
@@ -152,7 +188,10 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
         const rows = monthlyEntries.map(e =>
             `${e.paymentDate},${e.patientName},${e.chartNumber},${e.phone},"${e.treatmentContent}",${e.paymentAmount},${e.paymentNote}`
         );
-        const csv = '\uFEFF' + [header, ...rows].join('\n');
+        const deletedRows = deletedMonthlyEntries.map(e =>
+            `${e.paymentDate},${e.patientName},${e.chartNumber},${e.phone},"[삭제] ${e.treatmentContent}",${e.paymentAmount},${e.paymentNote}${e.deletedAt ? ` / 삭제: ${e.deletedAt}` : ''}`
+        );
+        const csv = '\uFEFF' + [header, ...rows, ...deletedRows].join('\n');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -188,7 +227,7 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
                         )}
                         <button
                             onClick={handleExportCSV}
-                            disabled={monthlyEntries.length === 0}
+                            disabled={!hasAnyEntries}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-bold hover:bg-emerald-100 transition-all border border-emerald-200 disabled:opacity-50"
                         >
                             <Download className="w-3.5 h-3.5" />
@@ -251,8 +290,18 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
                 </div>
 
                 {/* 리스트 본문 */}
+                {totalDeletedTransactions > 0 && (
+                    <div className="px-6 py-3 border-t border-red-50 bg-red-50/40 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-2">
+                            <Trash2 className="w-4 h-4 text-red-400" />
+                            <span className="text-xs font-black text-red-500">삭제 수납 {totalDeletedTransactions}건</span>
+                        </div>
+                        <span className="text-sm font-black text-red-500">{totalDeletedAmount.toLocaleString()}원</span>
+                    </div>
+                )}
+
                 <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-                    {monthlyEntries.length === 0 ? (
+                    {!hasAnyEntries ? (
                         <div className="text-center py-16 text-slate-400">
                             <CreditCard className="w-16 h-16 mx-auto mb-4 opacity-10" />
                             <p className="font-bold text-lg">수납 내역이 없습니다</p>
@@ -337,6 +386,52 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
                             })}
 
                             {/* 환자별 합계 */}
+                            {deletedMonthlyEntries.length > 0 && (
+                                <div className="mt-6 pt-4 border-t-2 border-red-100">
+                                    <h4 className="text-xs font-black text-red-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                        삭제된 수납 내역
+                                    </h4>
+                                    <div className="space-y-2">
+                                        {deletedMonthlyEntries.map((entry, idx) => {
+                                            const deletedLabel = entry.deletedAt
+                                                ? new Date(entry.deletedAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+                                                : '';
+
+                                            return (
+                                                <div
+                                                    key={`${entry.patientId}-deleted-${entry.paymentDate}-${idx}`}
+                                                    onClick={() => navigate(`/patient/${entry.patientId}`)}
+                                                    className="bg-red-50/70 border border-red-100 rounded-xl p-3 flex items-center gap-3 hover:border-red-200 hover:bg-red-50 transition-all cursor-pointer"
+                                                >
+                                                    <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-white text-red-400 border border-red-100 shrink-0">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-bold text-sm lg:text-base text-slate-700 truncate">{entry.patientName}</span>
+                                                            <span className="text-[11px] font-black text-slate-400 bg-white px-2 py-1 rounded border border-red-50">
+                                                                <Hash className="w-3 h-3 inline mr-0.5" />{entry.chartNumber}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-xs text-slate-400">{entry.paymentDate}</span>
+                                                            {deletedLabel && <span className="text-xs text-red-300 font-bold">삭제: {deletedLabel}</span>}
+                                                            {entry.paymentNote && <span className="text-[11px] text-slate-400 italic">({entry.paymentNote})</span>}
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right shrink-0 ml-auto">
+                                                        <p className="text-base font-black text-red-500 line-through">
+                                                            {entry.paymentAmount.toLocaleString()}<span className="text-[11px] text-slate-400 font-bold ml-0.5">원</span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="mt-6 pt-4 border-t-2 border-slate-100">
                                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                                     <User className="w-3.5 h-3.5" />
