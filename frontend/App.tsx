@@ -529,7 +529,7 @@ const MainApp = () => {
             <Route path="/patient/:id" element={<PatientDetail onRefresh={refreshPatients} />} />
             <Route path="/recalls" element={<RecallManager patients={patients} onRefresh={refreshPatients} />} />
             <Route path="/calendar" element={<CalendarView patients={patients} />} />
-            <Route path="/monthly-payments" element={<MonthlyPayments patients={patients} />} />
+            <Route path="/monthly-payments" element={<MonthlyPayments patients={patients} onRefresh={refreshPatients} />} />
             <Route path="/settings" element={<SettingsView />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -163,9 +163,9 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
       const updated = {
         ...patient,
         lastVisit: result.isVisitedToday ? today : (result.lastVisitDate ?? patient.lastVisit),
-        nextRecallDate: result.nextRecallDate ?? patient.nextRecallDate,
-        nextRecallContent: result.nextRecallContent ?? patient.nextRecallContent,
-        ...(result.nextRecallDate === '' ? { recallExcluded: false } : {}),
+        // A missing DentWeb appointment must not erase a manually set recall.
+        nextRecallDate: result.hasAppointment ? (result.nextRecallDate || patient.nextRecallDate) : patient.nextRecallDate,
+        nextRecallContent: result.hasAppointment ? (result.nextRecallContent || patient.nextRecallContent) : patient.nextRecallContent,
       };
       setPatient(updated);
       storageService.updatePatient(updated);

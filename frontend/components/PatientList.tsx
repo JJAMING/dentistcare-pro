@@ -22,6 +22,7 @@ import { Patient } from '../types';
 import { excelService } from '../services/excelService';
 import { storageService } from '../services/storageService';
 import { dentwebService } from '../services/dentwebService';
+import { authService } from '../services/authService';
 
 interface PatientListProps {
   patients: Patient[];
@@ -201,19 +202,28 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
 
     setIsImporting(true);
     try {
-      const imported = await excelService.importFromExcel(file);
+      const user = authService.getCurrentUser();
+      if (!user) throw new Error('로그인 정보를 확인할 수 없습니다. 다시 로그인해 주세요.');
+
       const current = storageService.getPatients();
-      const newPatients = [...current];
-      imported.forEach(p => {
-        if (!newPatients.some(existing => existing.chartNumber === p.chartNumber)) {
-          newPatients.push(p as Patient);
-        }
+      const result = await excelService.importFromExcel(file, {
+        clinicId: user.clinicId,
+        existingPatients: current
       });
-      storageService.savePatients(newPatients);
-      onRefresh();
-      alert('성공적으로 임포트되었습니다.');
+
+      if (result.importedCount > 0) {
+        storageService.savePatients([...current, ...result.patients]);
+        onRefresh();
+      }
+
+      const details = result.errors.length > 0 ? `\n\n확인 필요:\n${result.errors.join('\n')}` : '';
+      alert(
+        `엑셀 가져오기를 완료했습니다.\n` +
+        `가져옴 ${result.importedCount}명 / 중복 건너뜀 ${result.skippedCount}명 / 오류 ${result.invalidCount}명${details}`
+      );
     } catch (err) {
-      alert('엑셀 파일을 처리하는 중 오류가 발생했습니다.');
+      const message = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
+      alert(`엑셀 파일을 처리하지 못했습니다.\n${message}`);
     } finally {
       setIsImporting(false);
       e.target.value = '';
@@ -258,14 +268,24 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
         if (result.success) {
           const index = currentPatients.findIndex(cp => cp.id === p.id);
           if (index !== -1) {
-            currentPatients[index] = {
-              ...currentPatients[index],
+            const currentPatient = currentPatients[index];
+            const updatedPatient = {
+              ...currentPatient,
               lastVisit: result.isVisitedToday ? new Date().toISOString().split('T')[0] : (result.lastVisitDate || currentPatients[index].lastVisit),
-              nextRecallDate: result.nextRecallDate || '',
-              nextRecallContent: result.nextRecallContent || '',
+              // A missing DentWeb appointment must not erase a manually set recall.
+              nextRecallDate: result.hasAppointment ? (result.nextRecallDate || currentPatient.nextRecallDate) : currentPatient.nextRecallDate,
+              nextRecallContent: result.hasAppointment ? (result.nextRecallContent || currentPatient.nextRecallContent) : currentPatient.nextRecallContent,
               dentwebPatientId: result.patientId
             };
-            updatedCount++;
+            if (
+              currentPatient.lastVisit !== updatedPatient.lastVisit ||
+              currentPatient.nextRecallDate !== updatedPatient.nextRecallDate ||
+              currentPatient.nextRecallContent !== updatedPatient.nextRecallContent ||
+              currentPatient.dentwebPatientId !== updatedPatient.dentwebPatientId
+            ) {
+              currentPatients[index] = updatedPatient;
+              updatedCount++;
+            }
           }
         }
       } catch (error) {
@@ -325,10 +345,18 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
             <TrendingUp className="w-3.5 h-3.5" />
             월별 수납
           </button>
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 hover:bg-slate-50 shadow-sm transition-all"
+            title="환자 전체 백업 엑셀 내보내기"
+          >
+            <Download className="w-3.5 h-3.5" />
+            엑셀 내보내기
+          </button>
           <label className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 hover:bg-slate-50 cursor-pointer shadow-sm transition-all">
             <Upload className="w-3.5 h-3.5" />
-            업로드
-            <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleImport} disabled={isImporting} />
+            {isImporting ? '가져오는 중...' : '엑셀 가져오기'}
+            <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} disabled={isImporting} />
           </label>
         </div>
       </div>

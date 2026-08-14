@@ -16,6 +16,8 @@ export interface Payment {
   amount: string;   // 수납 금액 (문자열, 예: "100000")
   date: string;     // 수납 날짜 'YYYY-MM-DD'
   note?: string;    // 비고
+  isConfirmed?: boolean;
+  confirmedAt?: string;
 }
 
 /** 진료 내역 메모 단일 항목 */
@@ -59,7 +61,9 @@ export interface Patient {
   treatments: Treatment[];
   status: 'active' | 'inactive';
   completedRecallDates: string[];
+  firstVisit?: string;
   externalId?: string;
+  dentwebPatientId?: number;
   isLinked?: boolean;
   recallExcluded?: boolean;  // 리콜 미설정 탭에서 제외 여부 (환자관리에서는 유지)
   clinicId: string;          // 소속 치과 고유 ID

@@ -431,8 +431,10 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
 
       const currentPatients = storageService.getPatients();
       const currentDoctors = storageService.getDoctors();
+      const deletedPatientIds = storageService.getDeletedPatientIds();
       
-      await firebaseService.syncToCloud(currentPatients, currentDoctors, user.clinicId);
+      await firebaseService.syncToCloud(currentPatients, currentDoctors, user.clinicId, deletedPatientIds);
+      storageService.clearDeletedPatientIds(deletedPatientIds);
       
       const now = new Date().toLocaleString();
       setLastSyncTime(now);

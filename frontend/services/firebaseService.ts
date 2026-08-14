@@ -24,7 +24,7 @@ export const firebaseService = {
   /**
    * 로컬 스토리지의 전체 데이터를 Firestore로 업로드 (일괄 동기화)
    */
-  syncToCloud: async (patients: Patient[], doctors: string[], clinicId: string) => {
+  syncToCloud: async (patients: Patient[], doctors: string[], clinicId: string, deletedPatientIds: string[] = []) => {
     try {
       const batch = writeBatch(db);
 
@@ -38,6 +38,13 @@ export const firebaseService = {
       });
 
       // 2. 원장 목록 업로드
+      const activePatientIds = new Set(patients.map(patient => patient.id));
+      const patientIdsToDelete = [...new Set(deletedPatientIds)]
+        .filter(id => id && !activePatientIds.has(id));
+      patientIdsToDelete.forEach((patientId) => {
+        batch.delete(doc(db, 'patients', patientId));
+      });
+
       const configRef = doc(db, 'config', 'doctors');
       batch.set(configRef, { list: doctors, updatedAt: new Date().toISOString() });
 

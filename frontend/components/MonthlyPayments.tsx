@@ -20,9 +20,11 @@ import {
     Trash2
 } from 'lucide-react';
 import { Patient } from '../types';
+import { storageService } from '../services/storageService';
 
 interface MonthlyPaymentsProps {
     patients: Patient[];
+    onRefresh: () => void;
 }
 
 interface PaymentEntry {
@@ -34,15 +36,17 @@ interface PaymentEntry {
     paymentDate: string;
     paymentAmount: number;
     paymentNote: string;
+    treatmentId: string;
+    paymentId: string;
+    isConfirmed: boolean;
     deletedAt?: string;
 }
 
-const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
+const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }) => {
     const navigate = useNavigate();
     const today = new Date();
     const [selectedYear, setSelectedYear] = useState(today.getFullYear());
     const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
-    const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
 
     const goToPrevMonth = () => {
         if (selectedMonth === 1) {
@@ -60,24 +64,50 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
         } else {
             setSelectedMonth(m => m + 1);
         }
-        setCheckedItems(new Set()); // 월 변경 시 체크 초기화
     };
 
-    const toggleCheck = (id: string, e: React.MouseEvent) => {
+    const toggleCheck = (entry: PaymentEntry, e: React.MouseEvent) => {
         e.stopPropagation();
-        setCheckedItems(prev => {
-            const next = new Set(prev);
-            if (next.has(id)) {
-                next.delete(id);
-            } else {
-                next.add(id);
-            }
-            return next;
+        const updatedPatients = storageService.getPatients().map(patient => {
+            if (patient.id !== entry.patientId) return patient;
+            return {
+                ...patient,
+                treatments: patient.treatments.map(treatment => {
+                    if (treatment.id !== entry.treatmentId) return treatment;
+                    return {
+                        ...treatment,
+                        payments: (treatment.payments || []).map(payment =>
+                            payment.id === entry.paymentId
+                                ? {
+                                    ...payment,
+                                    isConfirmed: !payment.isConfirmed,
+                                    confirmedAt: payment.isConfirmed ? undefined : new Date().toISOString()
+                                }
+                                : payment
+                        )
+                    };
+                })
+            };
         });
+        storageService.savePatients(updatedPatients);
+        onRefresh();
     };
 
     const uncheckAll = () => {
-        setCheckedItems(new Set());
+        const yearMonth = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+        const updatedPatients = storageService.getPatients().map(patient => ({
+            ...patient,
+            treatments: patient.treatments.map(treatment => ({
+                ...treatment,
+                payments: (treatment.payments || []).map(payment =>
+                    payment.isConfirmed && payment.date?.startsWith(yearMonth)
+                        ? { ...payment, isConfirmed: false, confirmedAt: undefined }
+                        : payment
+                )
+            }))
+        }));
+        storageService.savePatients(updatedPatients);
+        onRefresh();
     };
 
     // 선택한 월의 수납 내역 추출
@@ -99,7 +129,10 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
                                 treatmentContent: treatment.content || '(미입력)',
                                 paymentDate: payment.date,
                                 paymentAmount: amount,
-                                paymentNote: payment.note || ''
+                                paymentNote: payment.note || '',
+                                treatmentId: treatment.id,
+                                paymentId: payment.id,
+                                isConfirmed: !!payment.isConfirmed
                             });
                         }
                     }
@@ -131,6 +164,9 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
                                 paymentDate: payment.date,
                                 paymentAmount: amount,
                                 paymentNote: payment.note || '',
+                                treatmentId: treatment.id,
+                                paymentId: payment.id,
+                                isConfirmed: false,
                                 deletedAt: payment.deletedAt
                             });
                         }
@@ -143,22 +179,31 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
         return entries;
     }, [patients, selectedYear, selectedMonth]);
 
-    // 일자별 그룹핑
+    const confirmedEntries = useMemo(
+        () => monthlyEntries.filter(entry => entry.isConfirmed),
+        [monthlyEntries]
+    );
+    const visibleEntries = useMemo(
+        () => monthlyEntries.filter(entry => !entry.isConfirmed),
+        [monthlyEntries]
+    );
+
+    // 확인되지 않은 수납만 일자별로 표시
     const groupedByDate = useMemo(() => {
         const groups: Record<string, PaymentEntry[]> = {};
-        monthlyEntries.forEach(entry => {
+        visibleEntries.forEach(entry => {
             if (!groups[entry.paymentDate]) {
                 groups[entry.paymentDate] = [];
             }
             groups[entry.paymentDate].push(entry);
         });
         return groups;
-    }, [monthlyEntries]);
+    }, [visibleEntries]);
 
     // 환자별 합계
     const patientTotals = useMemo(() => {
         const totals: Record<string, { id: string; name: string; chartNumber: string; phone: string; total: number; count: number }> = {};
-        monthlyEntries.forEach(entry => {
+        visibleEntries.forEach(entry => {
             if (!totals[entry.patientId]) {
                 totals[entry.patientId] = {
                     id: entry.patientId,
@@ -173,23 +218,25 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
             totals[entry.patientId].count += 1;
         });
         return Object.values(totals).sort((a, b) => b.total - a.total);
-    }, [monthlyEntries]);
+    }, [visibleEntries]);
 
     const totalRevenue = monthlyEntries.reduce((sum, e) => sum + e.paymentAmount, 0);
+    const confirmedRevenue = confirmedEntries.reduce((sum, e) => sum + e.paymentAmount, 0);
     const totalDeletedAmount = deletedMonthlyEntries.reduce((sum, e) => sum + e.paymentAmount, 0);
     const totalPatients = patientTotals.length;
     const totalTransactions = monthlyEntries.length;
+    const confirmedTransactions = confirmedEntries.length;
     const totalDeletedTransactions = deletedMonthlyEntries.length;
     const hasAnyEntries = monthlyEntries.length > 0 || deletedMonthlyEntries.length > 0;
 
     // CSV 내보내기
     const handleExportCSV = () => {
-        const header = '날짜,환자명,차트번호,전화번호,진료내용,수납금액,비고';
+        const header = '날짜,환자명,차트번호,전화번호,진료내용,수납금액,확인상태,비고';
         const rows = monthlyEntries.map(e =>
-            `${e.paymentDate},${e.patientName},${e.chartNumber},${e.phone},"${e.treatmentContent}",${e.paymentAmount},${e.paymentNote}`
+            `${e.paymentDate},${e.patientName},${e.chartNumber},${e.phone},"${e.treatmentContent}",${e.paymentAmount},${e.isConfirmed ? '확인 완료' : '미확인'},${e.paymentNote}`
         );
         const deletedRows = deletedMonthlyEntries.map(e =>
-            `${e.paymentDate},${e.patientName},${e.chartNumber},${e.phone},"[삭제] ${e.treatmentContent}",${e.paymentAmount},${e.paymentNote}${e.deletedAt ? ` / 삭제: ${e.deletedAt}` : ''}`
+            `${e.paymentDate},${e.patientName},${e.chartNumber},${e.phone},"[삭제] ${e.treatmentContent}",${e.paymentAmount},삭제,${e.paymentNote}${e.deletedAt ? ` / 삭제: ${e.deletedAt}` : ''}`
         );
         const csv = '\uFEFF' + [header, ...rows, ...deletedRows].join('\n');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -216,13 +263,13 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        {checkedItems.size > 0 && (
+                        {confirmedTransactions > 0 && (
                             <button
                                 onClick={uncheckAll}
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-100 transition-all border border-slate-200 animate-in fade-in"
                             >
                                 <Square className="w-3.5 h-3.5 text-slate-400" />
-                                모두 해제 ({checkedItems.size})
+                                모두 해제 ({confirmedTransactions})
                             </button>
                         )}
                         <button
@@ -259,7 +306,7 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
                 </div>
 
                 {/* 요약 카드 */}
-                <div className="grid grid-cols-3 gap-3 px-6 py-4 bg-slate-50/50 shrink-0">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-6 py-4 bg-slate-50/50 shrink-0">
                     <div className="bg-white rounded-xl p-3 border border-slate-100 shadow-sm">
                         <div className="flex items-center gap-2 mb-1">
                             <DollarSign className="w-3.5 h-3.5 text-indigo-400" />
@@ -267,6 +314,15 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
                         </div>
                         <p className="text-base lg:text-xl font-black text-indigo-600 truncate">
                             {totalRevenue.toLocaleString()}<span className="text-[10px] text-slate-400 ml-0.5 font-bold">원</span>
+                        </p>
+                    </div>
+                    <div className="bg-white rounded-xl p-3 border border-emerald-100 shadow-sm">
+                        <div className="flex items-center gap-2 mb-1">
+                            <CheckSquare className="w-3.5 h-3.5 text-emerald-500" />
+                            <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">확인 매출</span>
+                        </div>
+                        <p className="text-base lg:text-xl font-black text-emerald-600 truncate">
+                            {confirmedRevenue.toLocaleString()}<span className="text-[10px] text-slate-400 ml-0.5 font-bold">원</span>
                         </p>
                     </div>
                     <div className="bg-white rounded-xl p-3 border border-slate-100 shadow-sm">
@@ -309,6 +365,13 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
                         </div>
                     ) : (
                         <>
+                            {visibleEntries.length === 0 && monthlyEntries.length > 0 && (
+                                <div className="text-center py-12 text-emerald-600 bg-emerald-50/50 border border-emerald-100 rounded-2xl">
+                                    <CheckSquare className="w-10 h-10 mx-auto mb-3 text-emerald-400" />
+                                    <p className="font-black">이번 달 수납을 모두 확인했습니다.</p>
+                                    <p className="text-sm mt-1 text-emerald-500">상단의 모두 해제를 누르면 다시 목록에 표시됩니다.</p>
+                                </div>
+                            )}
                             {/* 일자별 그룹 */}
                             {Object.keys(groupedByDate).sort().map(date => {
                                 const entries = groupedByDate[date];
@@ -331,27 +394,22 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients }) => {
                                             </span>
                                         </div>
 
-                                        {entries.map((entry, idx) => {
-                                            const entryKey = `${entry.patientId}-${date}-${idx}`;
-                                            const isChecked = checkedItems.has(entryKey);
+                                        {entries.map((entry) => {
+                                            const entryKey = `${entry.patientId}-${entry.treatmentId}-${entry.paymentId}`;
 
                                             return (
                                                 <div
                                                     key={entryKey}
                                                     onClick={() => navigate(`/patient/${entry.patientId}`)}
-                                                    className={`bg-white border rounded-xl p-3 flex items-center gap-3 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all cursor-pointer group ${isChecked ? 'border-indigo-400 bg-indigo-50/30 shadow-sm' : 'border-slate-100'}`}
+                                                    className="bg-white border border-slate-100 rounded-xl p-3 flex items-center gap-3 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all cursor-pointer group"
                                                 >
                                                     <div
-                                                        onClick={(e) => toggleCheck(entryKey, e)}
+                                                        onClick={(e) => toggleCheck(entry, e)}
                                                         className="p-1 -ml-1 hover:bg-slate-100 rounded text-slate-300 hover:text-indigo-500 transition-colors shrink-0"
                                                     >
-                                                        {isChecked ? (
-                                                            <CheckSquare className="w-5 h-5 text-indigo-500" />
-                                                        ) : (
-                                                            <Square className="w-5 h-5" />
-                                                        )}
+                                                        <Square className="w-5 h-5" />
                                                     </div>
-                                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 transition-colors ${isChecked ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600'}`}>
+                                                    <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 bg-indigo-50 text-indigo-600 transition-colors">
                                                         {entry.patientName[0]}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
