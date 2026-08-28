@@ -27,6 +27,8 @@ import {
 import { Patient } from '../types';
 import { storageService } from '../services/storageService';
 import { PaymentReconciliationResult, ReconciliationStatus, paymentReconciliationService } from '../services/paymentReconciliationService';
+import { paymentReconciliationStorageService } from '../services/paymentReconciliationStorageService';
+import { authService } from '../services/authService';
 
 interface MonthlyPaymentsProps {
     patients: Patient[];
@@ -61,6 +63,13 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
     const [reconciliationView, setReconciliationView] = useState<ReconciliationView>('unmatched');
     const [isReconciling, setIsReconciling] = useState(false);
     const [reconciliationError, setReconciliationError] = useState('');
+    const clinicId = authService.getCurrentUser()?.clinicId || 'default';
+    const selectedYearMonth = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+
+    const savedReconciliation = useMemo(
+        () => paymentReconciliationStorageService.get(clinicId, selectedYearMonth),
+        [clinicId, selectedYearMonth, reconciliation]
+    );
 
     const goToPrevMonth = () => {
         if (selectedMonth === 1) {
@@ -271,7 +280,6 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
         setIsReconciling(true);
         setReconciliationError('');
         try {
-            const yearMonth = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
             const result = await paymentReconciliationService.reconcile(
                 file,
                 monthlyEntries.map(entry => ({
@@ -283,9 +291,9 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
                     paymentAmount: entry.paymentAmount,
                     paymentNote: entry.paymentNote
                 })),
-                yearMonth
+                selectedYearMonth
             );
-            setReconciliation(result);
+            setReconciliation(paymentReconciliationStorageService.save(clinicId, selectedYearMonth, result));
             setReconciliationView('unmatched');
         } catch (error) {
             console.error('Payment reconciliation failed:', error);
@@ -489,6 +497,24 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
                 </div>
 
                 {/* 요약 카드 */}
+                {savedReconciliation && (
+                    <div className="mx-6 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 px-4 py-3 shrink-0">
+                        <div className="flex min-w-0 items-center gap-3">
+                            <div className="rounded-xl bg-white p-2 text-indigo-600 shadow-sm"><FileSpreadsheet className="h-4 w-4" /></div>
+                            <div className="min-w-0">
+                                <p className="text-xs font-black text-indigo-700">저장된 엑셀 대조 결과</p>
+                                <p className="truncate text-xs text-indigo-500">{savedReconciliation.fileName} · {new Date(savedReconciliation.savedAt).toLocaleString('ko-KR')}</p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => { setReconciliation(savedReconciliation); setReconciliationView('unmatched'); }}
+                            className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white shadow-sm transition-colors hover:bg-indigo-700"
+                        >
+                            저장된 결과 보기
+                        </button>
+                    </div>
+                )}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-6 py-4 bg-slate-50/50 shrink-0">
                     <div className="bg-white rounded-xl p-3 border border-slate-100 shadow-sm">
                         <div className="flex items-center gap-2 mb-1">
