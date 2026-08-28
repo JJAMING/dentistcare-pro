@@ -48,6 +48,8 @@ interface PaymentEntry {
     deletedAt?: string;
 }
 
+type ReconciliationView = 'all' | 'unmatched' | ReconciliationStatus;
+
 const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }) => {
     const navigate = useNavigate();
     const reconciliationInputRef = useRef<HTMLInputElement>(null);
@@ -55,6 +57,7 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
     const [selectedYear, setSelectedYear] = useState(today.getFullYear());
     const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
     const [reconciliation, setReconciliation] = useState<PaymentReconciliationResult | null>(null);
+    const [reconciliationView, setReconciliationView] = useState<ReconciliationView>('unmatched');
     const [isReconciling, setIsReconciling] = useState(false);
     const [reconciliationError, setReconciliationError] = useState('');
 
@@ -280,6 +283,7 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
                 yearMonth
             );
             setReconciliation(result);
+            setReconciliationView('unmatched');
         } catch (error) {
             console.error('Payment reconciliation failed:', error);
             setReconciliationError('엑셀 파일을 읽지 못했습니다. 수납일, 환자명, 금액 열을 확인해 주세요.');
@@ -295,6 +299,13 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
         'date-mismatch': { label: '날짜 차이', className: 'bg-rose-100 text-rose-700', icon: <XCircle className="w-3.5 h-3.5" /> },
         'amount-mismatch': { label: '금액 차이', className: 'bg-rose-100 text-rose-700', icon: <XCircle className="w-3.5 h-3.5" /> }
     };
+
+    const reconciliationItems = useMemo(() => {
+        if (!reconciliation) return [];
+        if (reconciliationView === 'all') return reconciliation.items;
+        if (reconciliationView === 'unmatched') return reconciliation.items.filter(item => item.status !== 'matched');
+        return reconciliation.items.filter(item => item.status === reconciliationView);
+    }, [reconciliation, reconciliationView]);
 
     return (
         <div className="flex-1 flex flex-col h-[calc(100vh-4rem)] p-4 lg:p-8 animate-in fade-in duration-500 overflow-hidden">
@@ -331,6 +342,41 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
                                         <div className="rounded-xl bg-white p-3 border border-blue-100"><p className="text-xs font-bold text-slate-400">앱만 있음</p><p className="mt-1 text-xl font-black text-blue-600">{reconciliation.appOnlyCount}건</p></div>
                                         <div className="rounded-xl bg-white p-3 border border-rose-100"><p className="text-xs font-bold text-slate-400">날짜·금액 차이</p><p className="mt-1 text-xl font-black text-rose-600">{reconciliation.dateMismatchCount + reconciliation.amountMismatchCount}건</p></div>
                                     </div>
+                                    <div className="border-b border-slate-100 px-6 py-4 space-y-3">
+                                        <div className="flex flex-wrap gap-2">
+                                            {([
+                                                ['all', '전체', reconciliation.items.length],
+                                                ['unmatched', '불일치만', reconciliation.items.length - reconciliation.matchedCount]
+                                            ] as const).map(([key, label, count]) => (
+                                                <button
+                                                    key={key}
+                                                    type="button"
+                                                    onClick={() => setReconciliationView(key)}
+                                                    className={`rounded-xl px-3 py-2 text-xs font-black transition-all ${reconciliationView === key ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                                                >
+                                                    {label} {count}건
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2 overflow-x-auto pb-1">
+                                            {([
+                                                ['excel-only', '엑셀만 있음', reconciliation.excelOnlyCount],
+                                                ['app-only', '앱만 있음', reconciliation.appOnlyCount],
+                                                ['matched', '일치', reconciliation.matchedCount],
+                                                ['date-mismatch', '날짜 차이', reconciliation.dateMismatchCount],
+                                                ['amount-mismatch', '금액 차이', reconciliation.amountMismatchCount]
+                                            ] as const).map(([key, label, count]) => (
+                                                <button
+                                                    key={key}
+                                                    type="button"
+                                                    onClick={() => setReconciliationView(key)}
+                                                    className={`shrink-0 rounded-xl border px-3 py-2 text-xs font-black transition-all ${reconciliationView === key ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-500 hover:border-indigo-300 hover:text-indigo-600'}`}
+                                                >
+                                                    {label} {count}건
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-6 py-3 text-sm">
                                         <span className="font-bold text-slate-500">엑셀 합계 <strong className="ml-1 text-slate-800">{reconciliation.excelTotal.toLocaleString()}원</strong></span>
                                         <span className="font-bold text-slate-500">앱 합계 <strong className="ml-1 text-slate-800">{reconciliation.appTotal.toLocaleString()}원</strong></span>
@@ -339,11 +385,11 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
                                         </span>
                                     </div>
                                     <div className="max-h-[52vh] overflow-y-auto p-4">
-                                        {reconciliation.items.length === 0 ? (
-                                            <div className="py-10 text-center text-slate-500">선택한 월에 대조할 수납 내역이 없습니다.</div>
+                                        {reconciliationItems.length === 0 ? (
+                                            <div className="py-10 text-center text-slate-500">선택한 분류에 표시할 수납 내역이 없습니다.</div>
                                         ) : (
                                             <div className="space-y-2">
-                                                {[...reconciliation.items].sort((a, b) => Number(a.status === 'matched') - Number(b.status === 'matched')).map((item, index) => {
+                                                {[...reconciliationItems].sort((a, b) => Number(a.status === 'matched') - Number(b.status === 'matched')).map((item, index) => {
                                                     const meta = statusMeta[item.status];
                                                     const excel = item.excel;
                                                     const app = item.app;
