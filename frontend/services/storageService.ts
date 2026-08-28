@@ -1,6 +1,7 @@
 
 import { Patient } from '../types';
 import { authService } from './authService';
+import { getAppointmentHistory, withAppointmentHistory } from './appointmentService';
 
 const STORAGE_KEY = 'dentist_care_patients';
 const DOCTORS_KEY = 'dentist_care_doctors';
@@ -11,20 +12,21 @@ const DEFAULT_DOCTORS = ['대표원장', '부원장1', '교정원장'];
 export const storageService = {
   getPatients: (): Patient[] => {
     const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+    const patients: Patient[] = data ? JSON.parse(data) : [];
+    return patients.map(withAppointmentHistory);
   },
 
   savePatients: (patients: Patient[]) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(patients));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(patients.map(withAppointmentHistory)));
   },
 
   addPatient: (patient: Patient) => {
     const user = authService.getCurrentUser();
     const patients = storageService.getPatients();
-    const newPatient = { 
-      ...patient, 
-      clinicId: user?.clinicId || "baroom_dental" 
-    };
+    const newPatient = withAppointmentHistory({
+      ...patient,
+      clinicId: user?.clinicId || "baroom_dental"
+    });
     patients.push(newPatient);
     storageService.savePatients(patients);
   },
@@ -33,7 +35,21 @@ export const storageService = {
     const patients = storageService.getPatients();
     const index = patients.findIndex(p => p.id === updatedPatient.id);
     if (index !== -1) {
-      patients[index] = updatedPatient;
+      // Preserve an appointment even when a form or synchronization replaces
+      // the legacy nextRecallDate field with a newer date.
+      const existingHistory = getAppointmentHistory(patients[index]);
+      const incomingHistory = getAppointmentHistory(updatedPatient);
+      const history = [...existingHistory];
+      incomingHistory.forEach(record => {
+        const current = history.find(item => item.id === record.id);
+        if (current) Object.assign(current, record);
+        else history.push(record);
+      });
+      const activeAppointment = history.find(record => record.date === updatedPatient.nextRecallDate);
+      if (activeAppointment && updatedPatient.nextRecallContent) {
+        activeAppointment.content = updatedPatient.nextRecallContent;
+      }
+      patients[index] = withAppointmentHistory({ ...updatedPatient, appointmentHistory: history });
       storageService.savePatients(patients);
     }
   },

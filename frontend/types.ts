@@ -45,6 +45,19 @@ export interface Treatment {
   isAgreed?: boolean;
 }
 
+export type AppointmentStatus = 'scheduled' | 'visited' | 'no-show';
+
+/** A retained appointment record. `nextRecallDate` remains the next active appointment for legacy screens. */
+export interface AppointmentRecord {
+  id: string;
+  date: string;
+  time?: string;
+  content?: string;
+  status: AppointmentStatus;
+  source?: 'manual' | 'dentweb';
+  recordedAt: string;
+}
+
 export interface Patient {
   id: string;
   chartNumber: string;
@@ -56,6 +69,7 @@ export interface Patient {
   lastVisit: string;
   nextRecallDate: string;
   nextRecallContent: string;
+  appointmentHistory?: AppointmentRecord[];
   visitPath?: string;
   visitPathDetail?: string;
   treatments: Treatment[];

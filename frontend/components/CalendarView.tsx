@@ -6,15 +6,27 @@ import {
   ChevronRight,
   Calendar as CalendarIcon,
   User,
-  X
+  X,
+  CheckCircle2,
+  AlertTriangle,
+  Clock3
 } from 'lucide-react';
-import { Patient } from '../types';
+import { AppointmentRecord, AppointmentStatus, Patient } from '../types';
+import { appointmentDisplayStatus, getAppointmentHistory, updateAppointmentStatus } from '../services/appointmentService';
+import { storageService } from '../services/storageService';
 
 interface CalendarViewProps {
   patients: Patient[];
+  onRefresh: () => void;
 }
 
-const CalendarView: React.FC<CalendarViewProps> = ({ patients }) => {
+const statusPresentation: Record<AppointmentStatus, { label: string; className: string; icon: React.ReactNode }> = {
+  scheduled: { label: '\uC608\uC815', className: 'bg-blue-100 text-blue-700', icon: <Clock3 className="h-3.5 w-3.5" /> },
+  visited: { label: '\uB0B4\uC6D0', className: 'bg-emerald-100 text-emerald-700', icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
+  'no-show': { label: '\uBBF8\uC774\uD589', className: 'bg-rose-100 text-rose-700', icon: <AlertTriangle className="h-3.5 w-3.5" /> }
+};
+
+const CalendarView: React.FC<CalendarViewProps> = ({ patients, onRefresh }) => {
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -44,7 +56,16 @@ const CalendarView: React.FC<CalendarViewProps> = ({ patients }) => {
 
   const getAppointmentsForDate = (date: Date) => {
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    return patients.filter(p => p.nextRecallDate === dateStr);
+    return patients.flatMap(patient =>
+      getAppointmentHistory(patient)
+        .filter(appointment => appointment.date === dateStr)
+        .map(appointment => ({ patient, appointment }))
+    );
+  };
+
+  const handleStatusChange = (patient: Patient, appointment: AppointmentRecord, status: AppointmentStatus) => {
+    storageService.updatePatient(updateAppointmentStatus(patient, appointment.id, status));
+    onRefresh();
   };
 
   const monthName = new Intl.DateTimeFormat('ko-KR', { month: 'long' }).format(currentDate);
@@ -186,13 +207,24 @@ const CalendarView: React.FC<CalendarViewProps> = ({ patients }) => {
             <div className="max-h-[60vh] overflow-y-auto p-4">
               {selectedAppointments.length > 0 ? (
                 <div className="space-y-3">
-                  {selectedAppointments.map((patient) => (
-                    <button
-                      key={patient.id}
-                      type="button"
+                  {selectedAppointments.map(({ patient, appointment }) => {
+                    const appointmentStatus = appointmentDisplayStatus(appointment);
+                    const presentation = statusPresentation[appointmentStatus];
+                    return (
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      key={`${patient.id}-${appointment.id}`}
                       onClick={() => {
                         setSelectedDate(null);
                         navigate(`/patient/${patient.id}`);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setSelectedDate(null);
+                          navigate(`/patient/${patient.id}`);
+                        }
                       }}
                       className="flex w-full items-center gap-4 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 text-left transition-all hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     >
@@ -207,12 +239,28 @@ const CalendarView: React.FC<CalendarViewProps> = ({ patients }) => {
                           </span>
                         </div>
                         <p className="mt-1 truncate text-sm font-medium text-blue-600">
-                          {patient.nextRecallContent || '예약 내용이 등록되지 않았습니다.'}
+                          {appointment.content || patient.nextRecallContent || '예약 내용이 등록되지 않았습니다.'}
                         </p>
+                        <span className={`mt-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-black ${presentation.className}`}>
+                          {presentation.icon}
+                          {presentation.label}
+                        </span>
+                        <select
+                          aria-label={`${patient.name} 환자 예약 이행 상태`}
+                          value={appointment.status}
+                          onClick={event => event.stopPropagation()}
+                          onChange={event => handleStatusChange(patient, appointment, event.target.value as AppointmentStatus)}
+                          className="ml-2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="scheduled">예정</option>
+                          <option value="visited">내원</option>
+                          <option value="no-show">미이행</option>
+                        </select>
                       </div>
                       <ChevronRight className="h-5 w-5 shrink-0 text-blue-300" />
-                    </button>
-                  ))}
+                    </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center px-6 py-14 text-center">

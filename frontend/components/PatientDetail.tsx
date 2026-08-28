@@ -30,6 +30,7 @@ import { Patient, Treatment, Payment, DeletedPayment, TreatmentMemo } from '../t
 import { storageService } from '../services/storageService';
 import { geminiService } from '../services/geminiService';
 import { dentwebService } from '../services/dentwebService';
+import { applyDentwebAppointment, updateAppointmentStatus } from '../services/appointmentService';
 import { RefreshCw, Link as LinkIcon, BadgeDollarSign } from 'lucide-react';
 
 interface PatientDetailProps {
@@ -160,13 +161,12 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
     if (result.success) {
       const today = new Date().toISOString().split('T')[0];
       // 덴트웹에 예약이 없다면(nextRecallDate가 빈 값이라면): 리콜 미설정으로 분류되도록 recallExcluded=false
-      const updated = {
-        ...patient,
-        lastVisit: result.isVisitedToday ? today : (result.lastVisitDate ?? patient.lastVisit),
-        // A missing DentWeb appointment must not erase a manually set recall.
-        nextRecallDate: result.hasAppointment ? (result.nextRecallDate || patient.nextRecallDate) : patient.nextRecallDate,
-        nextRecallContent: result.hasAppointment ? (result.nextRecallContent || patient.nextRecallContent) : patient.nextRecallContent,
-      };
+      const updated = applyDentwebAppointment(
+        patient,
+        result.hasAppointment ? (result.nextRecallDate || patient.nextRecallDate) : patient.nextRecallDate,
+        result.hasAppointment ? (result.nextRecallContent || patient.nextRecallContent) : patient.nextRecallContent,
+        result.isVisitedToday ? today : (result.lastVisitDate ?? patient.lastVisit)
+      );
       setPatient(updated);
       storageService.updatePatient(updated);
       onRefresh();
@@ -222,7 +222,11 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
     if (!patient.nextRecallDate) return;
     const todayStr = new Date().toISOString().split('T')[0];
     const updatedPatient = {
-      ...patient,
+      ...updateAppointmentStatus(
+        patient,
+        (patient.appointmentHistory || []).find(record => record.date === patient.nextRecallDate)?.id || '',
+        'visited'
+      ),
       completedRecallDates: [...(patient.completedRecallDates || []), patient.nextRecallDate],
       lastVisit: todayStr,
       nextRecallDate: '',

@@ -23,6 +23,7 @@ import { excelService } from '../services/excelService';
 import { storageService } from '../services/storageService';
 import { dentwebService } from '../services/dentwebService';
 import { authService } from '../services/authService';
+import { applyDentwebAppointment } from '../services/appointmentService';
 
 interface PatientListProps {
   patients: Patient[];
@@ -81,12 +82,7 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
                 p.nextRecallDate !== newNextRecallDate ||
                 p.nextRecallContent !== newNextRecallContent
               ) {
-                currentPatients[idx] = {
-                  ...p,
-                  lastVisit: newLastVisit,
-                  nextRecallDate: newNextRecallDate,
-                  nextRecallContent: newNextRecallContent,
-                };
+                currentPatients[idx] = applyDentwebAppointment(p, newNextRecallDate, newNextRecallContent, newLastVisit);
                 hasChanges = true;
               }
             }
@@ -133,12 +129,7 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
                   p.nextRecallDate !== newNextRecallDate ||
                   p.nextRecallContent !== newNextRecallContent
                 ) {
-                  currentPatients[idx] = {
-                    ...p,
-                    lastVisit: newLastVisit,
-                    nextRecallDate: newNextRecallDate,
-                    nextRecallContent: newNextRecallContent,
-                  };
+                  currentPatients[idx] = applyDentwebAppointment(p, newNextRecallDate, newNextRecallContent, newLastVisit);
                   hasChanges = true;
                 }
               }
@@ -270,11 +261,12 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
           if (index !== -1) {
             const currentPatient = currentPatients[index];
             const updatedPatient = {
-              ...currentPatient,
-              lastVisit: result.isVisitedToday ? new Date().toISOString().split('T')[0] : (result.lastVisitDate || currentPatients[index].lastVisit),
-              // A missing DentWeb appointment must not erase a manually set recall.
-              nextRecallDate: result.hasAppointment ? (result.nextRecallDate || currentPatient.nextRecallDate) : currentPatient.nextRecallDate,
-              nextRecallContent: result.hasAppointment ? (result.nextRecallContent || currentPatient.nextRecallContent) : currentPatient.nextRecallContent,
+              ...applyDentwebAppointment(
+                currentPatient,
+                result.hasAppointment ? (result.nextRecallDate || currentPatient.nextRecallDate) : currentPatient.nextRecallDate,
+                result.hasAppointment ? (result.nextRecallContent || currentPatient.nextRecallContent) : currentPatient.nextRecallContent,
+                result.isVisitedToday ? new Date().toISOString().split('T')[0] : (result.lastVisitDate || currentPatient.lastVisit)
+              ),
               dentwebPatientId: result.patientId
             };
             if (
