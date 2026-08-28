@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     X,
@@ -17,10 +17,16 @@ import {
     CalendarDays,
     CheckSquare,
     Square,
-    Trash2
+    Trash2,
+    Upload,
+    FileSpreadsheet,
+    CheckCircle2,
+    AlertTriangle,
+    XCircle
 } from 'lucide-react';
 import { Patient } from '../types';
 import { storageService } from '../services/storageService';
+import { PaymentReconciliationResult, ReconciliationStatus, paymentReconciliationService } from '../services/paymentReconciliationService';
 
 interface MonthlyPaymentsProps {
     patients: Patient[];
@@ -44,9 +50,13 @@ interface PaymentEntry {
 
 const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }) => {
     const navigate = useNavigate();
+    const reconciliationInputRef = useRef<HTMLInputElement>(null);
     const today = new Date();
     const [selectedYear, setSelectedYear] = useState(today.getFullYear());
     const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
+    const [reconciliation, setReconciliation] = useState<PaymentReconciliationResult | null>(null);
+    const [isReconciling, setIsReconciling] = useState(false);
+    const [reconciliationError, setReconciliationError] = useState('');
 
     const goToPrevMonth = () => {
         if (selectedMonth === 1) {
@@ -248,9 +258,118 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
         URL.revokeObjectURL(url);
     };
 
+    const handleReconciliationUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) return;
+
+        setIsReconciling(true);
+        setReconciliationError('');
+        try {
+            const yearMonth = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+            const result = await paymentReconciliationService.reconcile(
+                file,
+                monthlyEntries.map(entry => ({
+                    patientId: entry.patientId,
+                    patientName: entry.patientName,
+                    chartNumber: entry.chartNumber,
+                    paymentDate: entry.paymentDate,
+                    paymentAmount: entry.paymentAmount,
+                    paymentNote: entry.paymentNote
+                })),
+                yearMonth
+            );
+            setReconciliation(result);
+        } catch (error) {
+            console.error('Payment reconciliation failed:', error);
+            setReconciliationError('엑셀 파일을 읽지 못했습니다. 수납일, 환자명, 금액 열을 확인해 주세요.');
+        } finally {
+            setIsReconciling(false);
+        }
+    };
+
+    const statusMeta: Record<ReconciliationStatus, { label: string; className: string; icon: React.ReactNode }> = {
+        matched: { label: '일치', className: 'bg-emerald-100 text-emerald-700', icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+        'excel-only': { label: '엑셀만 있음', className: 'bg-amber-100 text-amber-700', icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+        'app-only': { label: '앱만 있음', className: 'bg-blue-100 text-blue-700', icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+        'date-mismatch': { label: '날짜 차이', className: 'bg-rose-100 text-rose-700', icon: <XCircle className="w-3.5 h-3.5" /> },
+        'amount-mismatch': { label: '금액 차이', className: 'bg-rose-100 text-rose-700', icon: <XCircle className="w-3.5 h-3.5" /> }
+    };
+
     return (
         <div className="flex-1 flex flex-col h-[calc(100vh-4rem)] p-4 lg:p-8 animate-in fade-in duration-500 overflow-hidden">
             <div className="bg-white rounded-[1.5rem] lg:rounded-[2rem] shadow-sm border border-slate-200 w-full h-full overflow-hidden flex flex-col">
+                {(reconciliation || reconciliationError) && (
+                    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm" onMouseDown={() => { setReconciliation(null); setReconciliationError(''); }}>
+                        <div className="w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-2xl" onMouseDown={event => event.stopPropagation()}>
+                            <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+                                <div>
+                                    <div className="flex items-center gap-2 text-indigo-600">
+                                        <FileSpreadsheet className="h-5 w-5" />
+                                        <p className="text-sm font-bold">엑셀 수납 대조</p>
+                                    </div>
+                                    <h3 className="mt-1 text-xl font-black text-slate-800">
+                                        {selectedYear}년 {selectedMonth}월 대조 결과
+                                    </h3>
+                                    {reconciliation && <p className="mt-1 text-sm text-slate-500">{reconciliation.fileName}</p>}
+                                </div>
+                                <button type="button" onClick={() => { setReconciliation(null); setReconciliationError(''); }} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </div>
+
+                            {reconciliationError ? (
+                                <div className="p-8 text-center">
+                                    <XCircle className="mx-auto h-10 w-10 text-rose-500" />
+                                    <p className="mt-3 font-bold text-slate-800">{reconciliationError}</p>
+                                </div>
+                            ) : reconciliation && (
+                                <>
+                                    <div className="grid grid-cols-2 gap-3 border-b border-slate-100 bg-slate-50 p-5 lg:grid-cols-4">
+                                        <div className="rounded-xl bg-white p-3 border border-emerald-100"><p className="text-xs font-bold text-slate-400">일치</p><p className="mt-1 text-xl font-black text-emerald-600">{reconciliation.matchedCount}건</p></div>
+                                        <div className="rounded-xl bg-white p-3 border border-amber-100"><p className="text-xs font-bold text-slate-400">엑셀만 있음</p><p className="mt-1 text-xl font-black text-amber-600">{reconciliation.excelOnlyCount}건</p></div>
+                                        <div className="rounded-xl bg-white p-3 border border-blue-100"><p className="text-xs font-bold text-slate-400">앱만 있음</p><p className="mt-1 text-xl font-black text-blue-600">{reconciliation.appOnlyCount}건</p></div>
+                                        <div className="rounded-xl bg-white p-3 border border-rose-100"><p className="text-xs font-bold text-slate-400">날짜·금액 차이</p><p className="mt-1 text-xl font-black text-rose-600">{reconciliation.dateMismatchCount + reconciliation.amountMismatchCount}건</p></div>
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-6 py-3 text-sm">
+                                        <span className="font-bold text-slate-500">엑셀 합계 <strong className="ml-1 text-slate-800">{reconciliation.excelTotal.toLocaleString()}원</strong></span>
+                                        <span className="font-bold text-slate-500">앱 합계 <strong className="ml-1 text-slate-800">{reconciliation.appTotal.toLocaleString()}원</strong></span>
+                                        <span className={`rounded-lg px-2 py-1 text-xs font-black ${reconciliation.excelTotal === reconciliation.appTotal ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                            차액 {(reconciliation.excelTotal - reconciliation.appTotal).toLocaleString()}원
+                                        </span>
+                                    </div>
+                                    <div className="max-h-[52vh] overflow-y-auto p-4">
+                                        {reconciliation.items.length === 0 ? (
+                                            <div className="py-10 text-center text-slate-500">선택한 월에 대조할 수납 내역이 없습니다.</div>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {[...reconciliation.items].sort((a, b) => Number(a.status === 'matched') - Number(b.status === 'matched')).map((item, index) => {
+                                                    const meta = statusMeta[item.status];
+                                                    const excel = item.excel;
+                                                    const app = item.app;
+                                                    return (
+                                                        <div key={`${item.status}-${index}`} className="rounded-xl border border-slate-100 bg-white p-3">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-black ${meta.className}`}>{meta.icon}{meta.label}</span>
+                                                                <span className="font-black text-slate-800">{excel?.patientName || app?.patientName}</span>
+                                                                {app?.chartNumber && <span className="text-xs font-bold text-slate-400">#{app.chartNumber}</span>}
+                                                            </div>
+                                                            <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
+                                                                <div className="rounded-lg bg-slate-50 px-3 py-2 text-slate-600"><span className="font-bold text-slate-400">엑셀</span> {excel ? `${excel.paymentDate} · ${excel.paymentAmount.toLocaleString()}원` : '없음'}</div>
+                                                                <div className="rounded-lg bg-slate-50 px-3 py-2 text-slate-600"><span className="font-bold text-slate-400">앱</span> {app ? `${app.paymentDate} · ${app.paymentAmount.toLocaleString()}원` : '없음'}</div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {reconciliation.ignoredRowCount > 0 && <p className="border-t border-slate-100 px-6 py-3 text-xs text-slate-400">필수 값이 없는 {reconciliation.ignoredRowCount}개 행은 제외되었습니다.</p>}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
                 {/* 헤더 */}
                 <div className="p-5 lg:p-6 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-indigo-50 to-blue-50 shrink-0">
                     <div className="flex items-center gap-3">
@@ -272,6 +391,21 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
                                 모두 해제 ({confirmedTransactions})
                             </button>
                         )}
+                        <button
+                            onClick={() => reconciliationInputRef.current?.click()}
+                            disabled={isReconciling}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-sm disabled:opacity-50"
+                        >
+                            {isReconciling ? <FileSpreadsheet className="w-3.5 h-3.5 animate-pulse" /> : <Upload className="w-3.5 h-3.5" />}
+                            {isReconciling ? '대조 중...' : '엑셀 대조'}
+                        </button>
+                        <input
+                            ref={reconciliationInputRef}
+                            type="file"
+                            accept=".xlsx,.xls,.csv"
+                            onChange={handleReconciliationUpload}
+                            className="hidden"
+                        />
                         <button
                             onClick={handleExportCSV}
                             disabled={!hasAnyEntries}
