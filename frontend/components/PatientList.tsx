@@ -23,7 +23,7 @@ import { excelService } from '../services/excelService';
 import { storageService } from '../services/storageService';
 import { dentwebService } from '../services/dentwebService';
 import { authService } from '../services/authService';
-import { applyDentwebAppointment } from '../services/appointmentService';
+import { applyDentwebAppointment, appointmentTimeForDate } from '../services/appointmentService';
 
 interface PatientListProps {
   patients: Patient[];
@@ -80,9 +80,10 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
               if (
                 p.lastVisit !== newLastVisit ||
                 p.nextRecallDate !== newNextRecallDate ||
-                p.nextRecallContent !== newNextRecallContent
+                p.nextRecallContent !== newNextRecallContent ||
+                (result.hasAppointment && appointmentTimeForDate(p, newNextRecallDate) !== (result.nextRecallTime || ''))
               ) {
-                currentPatients[idx] = applyDentwebAppointment(p, newNextRecallDate, newNextRecallContent, newLastVisit);
+                currentPatients[idx] = applyDentwebAppointment(p, newNextRecallDate, newNextRecallContent, newLastVisit, result.nextRecallTime || '');
                 hasChanges = true;
               }
             }
@@ -127,9 +128,10 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
                 if (
                   p.lastVisit !== newLastVisit ||
                   p.nextRecallDate !== newNextRecallDate ||
-                  p.nextRecallContent !== newNextRecallContent
+                  p.nextRecallContent !== newNextRecallContent ||
+                  (result.hasAppointment && appointmentTimeForDate(p, newNextRecallDate) !== (result.nextRecallTime || ''))
                 ) {
-                  currentPatients[idx] = applyDentwebAppointment(p, newNextRecallDate, newNextRecallContent, newLastVisit);
+                  currentPatients[idx] = applyDentwebAppointment(p, newNextRecallDate, newNextRecallContent, newLastVisit, result.nextRecallTime || '');
                   hasChanges = true;
                 }
               }
@@ -265,7 +267,8 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
                 currentPatient,
                 result.hasAppointment ? (result.nextRecallDate || currentPatient.nextRecallDate) : currentPatient.nextRecallDate,
                 result.hasAppointment ? (result.nextRecallContent || currentPatient.nextRecallContent) : currentPatient.nextRecallContent,
-                result.isVisitedToday ? new Date().toISOString().split('T')[0] : (result.lastVisitDate || currentPatient.lastVisit)
+                result.isVisitedToday ? new Date().toISOString().split('T')[0] : (result.lastVisitDate || currentPatient.lastVisit),
+                result.nextRecallTime || ''
               ),
               dentwebPatientId: result.patientId
             };
@@ -273,6 +276,7 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onRefresh }) => {
               currentPatient.lastVisit !== updatedPatient.lastVisit ||
               currentPatient.nextRecallDate !== updatedPatient.nextRecallDate ||
               currentPatient.nextRecallContent !== updatedPatient.nextRecallContent ||
+              appointmentTimeForDate(currentPatient, currentPatient.nextRecallDate) !== appointmentTimeForDate(updatedPatient, updatedPatient.nextRecallDate) ||
               currentPatient.dentwebPatientId !== updatedPatient.dentwebPatientId
             ) {
               currentPatients[index] = updatedPatient;

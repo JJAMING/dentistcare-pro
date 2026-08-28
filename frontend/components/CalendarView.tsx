@@ -26,6 +26,9 @@ const statusPresentation: Record<AppointmentStatus, { label: string; className: 
   'no-show': { label: '\uBBF8\uC774\uD589', className: 'bg-rose-100 text-rose-700', icon: <AlertTriangle className="h-3.5 w-3.5" /> }
 };
 
+const formatAppointmentTime = (time?: string) =>
+  time && /^\d{4}$/.test(time) ? `${time.slice(0, 2)}:${time.slice(2)}` : '';
+
 const CalendarView: React.FC<CalendarViewProps> = ({ patients, onRefresh }) => {
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -234,6 +237,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({ patients, onRefresh }) => {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <p className="truncate font-black text-slate-800">{patient.name}</p>
+                          {appointment.time && (
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-indigo-50 px-2 py-1 text-xs font-black text-indigo-600">
+                              <Clock3 className="h-3.5 w-3.5" />
+                              {formatAppointmentTime(appointment.time)}
+                            </span>
+                          )}
                           <span className="shrink-0 rounded-md bg-white px-2 py-1 text-xs font-bold text-slate-400">
                             #{patient.chartNumber}
                           </span>

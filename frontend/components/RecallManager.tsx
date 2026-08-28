@@ -5,7 +5,7 @@ import { Bell, Calendar, Phone, CheckCircle, ChevronRight, AlertTriangle, XCircl
 import { useNavigate } from 'react-router-dom';
 import { storageService } from '../services/storageService';
 import { dentwebService } from '../services/dentwebService';
-import { applyDentwebAppointment } from '../services/appointmentService';
+import { applyDentwebAppointment, appointmentTimeForDate } from '../services/appointmentService';
 
 interface RecallManagerProps {
   patients: Patient[];
@@ -46,9 +46,10 @@ const RecallManager: React.FC<RecallManagerProps> = ({ patients, onRefresh }) =>
               if (
                 p.lastVisit !== newLastVisit ||
                 p.nextRecallDate !== newNextRecallDate ||
-                p.nextRecallContent !== newNextRecallContent
+                p.nextRecallContent !== newNextRecallContent ||
+                (result.hasAppointment && appointmentTimeForDate(p, newNextRecallDate) !== (result.nextRecallTime || ''))
               ) {
-                currentPatients[idx] = applyDentwebAppointment(p, newNextRecallDate, newNextRecallContent, newLastVisit);
+                currentPatients[idx] = applyDentwebAppointment(p, newNextRecallDate, newNextRecallContent, newLastVisit, result.nextRecallTime || '');
                 hasChanges = true;
               }
             }

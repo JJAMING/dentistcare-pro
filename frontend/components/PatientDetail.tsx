@@ -165,7 +165,8 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
         patient,
         result.hasAppointment ? (result.nextRecallDate || patient.nextRecallDate) : patient.nextRecallDate,
         result.hasAppointment ? (result.nextRecallContent || patient.nextRecallContent) : patient.nextRecallContent,
-        result.isVisitedToday ? today : (result.lastVisitDate ?? patient.lastVisit)
+        result.isVisitedToday ? today : (result.lastVisitDate ?? patient.lastVisit),
+        result.nextRecallTime || ''
       );
       setPatient(updated);
       storageService.updatePatient(updated);

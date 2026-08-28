@@ -8,11 +8,13 @@ const createRecord = (
   date: string,
   content: string,
   status: AppointmentStatus = 'scheduled',
-  source: AppointmentRecord['source'] = 'manual'
+  source: AppointmentRecord['source'] = 'manual',
+  time?: string
 ): AppointmentRecord => ({
   id: appointmentId(date, content),
   date,
   content,
+  time,
   status,
   source,
   recordedAt: new Date().toISOString()
@@ -47,7 +49,8 @@ export const applyDentwebAppointment = (
   patient: Patient,
   nextRecallDate: string,
   nextRecallContent: string,
-  lastVisit: string
+  lastVisit: string,
+  nextRecallTime = ''
 ): Patient => {
   const history = getAppointmentHistory(patient);
   const currentRecord = history.find(record => record.date === patient.nextRecallDate);
@@ -60,9 +63,10 @@ export const applyDentwebAppointment = (
     const matchingRecord = history.find(record => record.date === nextRecallDate);
     if (matchingRecord) {
       matchingRecord.content = nextRecallContent || matchingRecord.content;
+      matchingRecord.time = nextRecallTime || matchingRecord.time;
       matchingRecord.source = 'dentweb';
     } else {
-      history.push(createRecord(nextRecallDate, nextRecallContent, 'scheduled', 'dentweb'));
+      history.push(createRecord(nextRecallDate, nextRecallContent, 'scheduled', 'dentweb', nextRecallTime));
     }
   }
 
@@ -77,6 +81,9 @@ export const applyDentwebAppointment = (
 
 export const appointmentDisplayStatus = (record: AppointmentRecord): AppointmentStatus =>
   record.status === 'scheduled' && record.date < todayString() ? 'no-show' : record.status;
+
+export const appointmentTimeForDate = (patient: Patient, date: string): string =>
+  getAppointmentHistory(patient).find(record => record.date === date)?.time || '';
 
 export const updateAppointmentStatus = (
   patient: Patient,
