@@ -118,6 +118,7 @@ const makePatient = (row: ExcelRow, clinicId: string, patientId: string): { pati
     id: patientId,
     chartNumber,
     name,
+    nameAliases: Array.isArray(raw.nameAliases) ? raw.nameAliases.filter(alias => typeof alias === 'string') : [],
     phone: text(row['연락처']) || text(raw.phone),
     birthDate: birthDate.value,
     gender: text(row['성별']) === '남' || text(row['성별']) === '여' ? text(row['성별']) as '남' | '여' : raw.gender,

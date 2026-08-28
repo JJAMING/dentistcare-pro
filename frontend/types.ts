@@ -62,6 +62,7 @@ export interface Patient {
   id: string;
   chartNumber: string;
   name: string;
+  nameAliases?: string[];
   phone: string;
   birthDate: string;
   gender?: '남' | '여';

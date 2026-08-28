@@ -36,6 +36,7 @@ interface MonthlyPaymentsProps {
 interface PaymentEntry {
     patientId: string;
     patientName: string;
+    nameAliases?: string[];
     chartNumber: string;
     phone: string;
     treatmentContent: string;
@@ -137,6 +138,7 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
                             entries.push({
                                 patientId: patient.id,
                                 patientName: patient.name,
+                                nameAliases: patient.nameAliases || [],
                                 chartNumber: patient.chartNumber,
                                 phone: patient.phone,
                                 treatmentContent: treatment.content || '(미입력)',
@@ -275,6 +277,7 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
                 monthlyEntries.map(entry => ({
                     patientId: entry.patientId,
                     patientName: entry.patientName,
+                    nameAliases: entry.nameAliases,
                     chartNumber: entry.chartNumber,
                     paymentDate: entry.paymentDate,
                     paymentAmount: entry.paymentAmount,

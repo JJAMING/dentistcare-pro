@@ -49,6 +49,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
     id: crypto.randomUUID(),
     chartNumber: '',
     name: '',
+    nameAliases: [],
     phone: '',
     birthDate: '',
     gender: undefined,
@@ -484,6 +485,21 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
                   onChange={e => setPatient({ ...patient, name: e.target.value })}
                   placeholder="환자 성함"
                 />
+              </div>
+
+              <div className="space-y-0.5">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-1">이름 별칭</label>
+                <input
+                  type="text"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm"
+                  value={(patient.nameAliases || []).join(', ')}
+                  onChange={e => setPatient({
+                    ...patient,
+                    nameAliases: [...new Set(e.target.value.split(/[,\n]/).map(alias => alias.trim()).filter(Boolean))]
+                  })}
+                  placeholder="엑셀에서 쓰는 이름 (쉼표로 여러 개 입력)"
+                />
+                <p className="px-1 text-[10px] leading-relaxed text-slate-400">예: Alex, Maria · 엑셀 수납 대조에 사용됩니다.</p>
               </div>
 
               <div className="space-y-1">

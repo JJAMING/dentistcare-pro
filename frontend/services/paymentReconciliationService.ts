@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 export interface AppPaymentForReconciliation {
   patientId: string;
   patientName: string;
+  nameAliases?: string[];
   chartNumber: string;
   paymentDate: string;
   paymentAmount: number;
@@ -49,7 +50,10 @@ const memoHeaders = ['\uBE44\uACE0', '\uB0B4\uC6A9', '\uBA54\uBAA8', 'memo', 'no
 
 const text = (value: unknown) => String(value ?? '').trim();
 const normalizedHeader = (value: string) => value.trim().toLowerCase().replace(/[\s_\-()\[\]]/g, '');
-const normalizedName = (value: string) => value.replace(/\s/g, '').toLowerCase();
+const normalizedName = (value: string) => value
+  .replace(/\([^)]*\)|\[[^\]]*\]/g, '')
+  .replace(/\s/g, '')
+  .toLowerCase();
 
 const findHeader = (headers: string[], candidates: string[]) => {
   const normalizedCandidates = candidates.map(normalizedHeader);
@@ -90,7 +94,19 @@ const normalizeAmount = (value: unknown): number => {
   return Number.isFinite(parsed) ? Math.abs(parsed) : 0;
 };
 
-const matchKey = (date: string, name: string, amount: number) => `${date}|${normalizedName(name)}|${amount}`;
+const namesMatch = (app: AppPaymentForReconciliation, excelName: string) => {
+  const normalizedExcelName = normalizedName(excelName);
+  if (!normalizedExcelName) return false;
+
+  return [app.patientName, ...(app.nameAliases || [])]
+    .map(normalizedName)
+    .filter(Boolean)
+    .some(normalizedAppName =>
+      normalizedAppName === normalizedExcelName ||
+      (normalizedAppName.length >= 3 && normalizedExcelName.length >= 3 &&
+        (normalizedAppName.includes(normalizedExcelName) || normalizedExcelName.includes(normalizedAppName)))
+    );
+};
 
 const readExcelPayments = async (file: File): Promise<{ entries: ExcelPaymentForReconciliation[]; totalRows: number; ignoredRows: number }> => {
   const buffer = await file.arrayBuffer();
@@ -148,7 +164,7 @@ export const paymentReconciliationService = {
 
     excelEntries.forEach(excel => {
       const exactIndex = appMonthlyEntries.findIndex((app, index) =>
-        unmatchedAppIndexes.has(index) && matchKey(app.paymentDate, app.patientName, app.paymentAmount) === matchKey(excel.paymentDate, excel.patientName, excel.paymentAmount)
+        unmatchedAppIndexes.has(index) && namesMatch(app, excel.patientName) && app.paymentDate === excel.paymentDate && app.paymentAmount === excel.paymentAmount
       );
       if (exactIndex >= 0) {
         unmatchedAppIndexes.delete(exactIndex);
@@ -157,7 +173,7 @@ export const paymentReconciliationService = {
       }
 
       const sameNameAndDate = appMonthlyEntries.findIndex((app, index) =>
-        unmatchedAppIndexes.has(index) && normalizedName(app.patientName) === normalizedName(excel.patientName) && app.paymentDate === excel.paymentDate
+        unmatchedAppIndexes.has(index) && namesMatch(app, excel.patientName) && app.paymentDate === excel.paymentDate
       );
       if (sameNameAndDate >= 0) {
         unmatchedAppIndexes.delete(sameNameAndDate);
@@ -166,7 +182,7 @@ export const paymentReconciliationService = {
       }
 
       const sameNameAndAmount = appMonthlyEntries.findIndex((app, index) =>
-        unmatchedAppIndexes.has(index) && normalizedName(app.patientName) === normalizedName(excel.patientName) && app.paymentAmount === excel.paymentAmount
+        unmatchedAppIndexes.has(index) && namesMatch(app, excel.patientName) && app.paymentAmount === excel.paymentAmount
       );
       if (sameNameAndAmount >= 0) {
         unmatchedAppIndexes.delete(sameNameAndAmount);
