@@ -19,12 +19,14 @@ export interface ExcelPaymentForReconciliation {
   memo?: string;
 }
 
-export type ReconciliationStatus = 'matched' | 'excel-only' | 'app-only' | 'date-mismatch' | 'amount-mismatch';
+export type ReconciliationStatus = 'matched' | 'split-matched' | 'excel-only' | 'app-only' | 'date-mismatch' | 'amount-mismatch';
 
 export interface ReconciliationItem {
   status: ReconciliationStatus;
   excel?: ExcelPaymentForReconciliation;
   app?: AppPaymentForReconciliation;
+  excelEntries?: ExcelPaymentForReconciliation[];
+  appEntries?: AppPaymentForReconciliation[];
 }
 
 export interface PaymentReconciliationResult {
@@ -33,12 +35,15 @@ export interface PaymentReconciliationResult {
   ignoredRowCount: number;
   items: ReconciliationItem[];
   matchedCount: number;
+  splitMatchedCount: number;
   excelOnlyCount: number;
   appOnlyCount: number;
   dateMismatchCount: number;
   amountMismatchCount: number;
   excelTotal: number;
   appTotal: number;
+  sourceExcelEntries?: ExcelPaymentForReconciliation[];
+  sourceAppEntries?: AppPaymentForReconciliation[];
 }
 
 type ExcelRow = Record<string, unknown>;
@@ -150,64 +155,178 @@ const readExcelPayments = async (file: File): Promise<{ entries: ExcelPaymentFor
   return { entries, totalRows, ignoredRows };
 };
 
+const sameAmount = (left: number, right: number) => Math.round(left * 100) === Math.round(right * 100);
+
+const findAmountSubset = <T extends { paymentAmount: number }>(
+  candidates: Array<{ index: number; entry: T }>,
+  target: number
+) => {
+  const targetCents = Math.round(target * 100);
+  const sorted = candidates
+    .filter(candidate => Math.round(candidate.entry.paymentAmount * 100) <= targetCents)
+    .sort((a, b) => b.entry.paymentAmount - a.entry.paymentAmount)
+    .slice(0, 12);
+  let found: Array<{ index: number; entry: T }> | null = null;
+
+  const search = (start: number, total: number, selected: Array<{ index: number; entry: T }>) => {
+    if (found || total > targetCents) return;
+    if (total === targetCents && selected.length >= 2) {
+      found = selected;
+      return;
+    }
+    for (let index = start; index < sorted.length; index++) {
+      const candidate = sorted[index];
+      search(index + 1, total + Math.round(candidate.entry.paymentAmount * 100), [...selected, candidate]);
+      if (found) return;
+    }
+  };
+
+  search(0, 0, []);
+  return found;
+};
+
+const buildResult = (
+  fileName: string,
+  excelSourceEntries: ExcelPaymentForReconciliation[],
+  appSourceEntries: AppPaymentForReconciliation[],
+  yearMonth: string,
+  ignoredRowCount = 0
+): PaymentReconciliationResult => {
+  const excelEntries = excelSourceEntries.filter(entry => entry.paymentDate.startsWith(yearMonth));
+  const appEntries = appSourceEntries.filter(entry => entry.paymentDate.startsWith(yearMonth));
+  const unmatchedExcelIndexes = new Set(excelEntries.map((_, index) => index));
+  const unmatchedAppIndexes = new Set(appEntries.map((_, index) => index));
+  const items: ReconciliationItem[] = [];
+
+  [...unmatchedExcelIndexes].forEach(excelIndex => {
+    const excel = excelEntries[excelIndex];
+    const appIndex = [...unmatchedAppIndexes].find(index => {
+      const app = appEntries[index];
+      return namesMatch(app, excel.patientName) && app.paymentDate === excel.paymentDate && sameAmount(app.paymentAmount, excel.paymentAmount);
+    });
+    if (appIndex !== undefined) {
+      unmatchedExcelIndexes.delete(excelIndex);
+      unmatchedAppIndexes.delete(appIndex);
+      items.push({ status: 'matched', excel, app: appEntries[appIndex] });
+    }
+  });
+
+  [...unmatchedAppIndexes].forEach(appIndex => {
+    if (!unmatchedAppIndexes.has(appIndex)) return;
+    const app = appEntries[appIndex];
+    const candidates = [...unmatchedExcelIndexes]
+      .map(index => ({ index, entry: excelEntries[index] }))
+      .filter(candidate => namesMatch(app, candidate.entry.patientName) && candidate.entry.paymentDate === app.paymentDate);
+    const subset = findAmountSubset(candidates, app.paymentAmount);
+    if (!subset) return;
+    unmatchedAppIndexes.delete(appIndex);
+    subset.forEach(candidate => unmatchedExcelIndexes.delete(candidate.index));
+    items.push({
+      status: 'split-matched',
+      excel: subset[0].entry,
+      app,
+      excelEntries: subset.map(candidate => candidate.entry),
+      appEntries: [app]
+    });
+  });
+
+  [...unmatchedExcelIndexes].forEach(excelIndex => {
+    if (!unmatchedExcelIndexes.has(excelIndex)) return;
+    const excel = excelEntries[excelIndex];
+    const candidates = [...unmatchedAppIndexes]
+      .map(index => ({ index, entry: appEntries[index] }))
+      .filter(candidate => namesMatch(candidate.entry, excel.patientName) && candidate.entry.paymentDate === excel.paymentDate);
+    const subset = findAmountSubset(candidates, excel.paymentAmount);
+    if (!subset) return;
+    unmatchedExcelIndexes.delete(excelIndex);
+    subset.forEach(candidate => unmatchedAppIndexes.delete(candidate.index));
+    items.push({
+      status: 'split-matched',
+      excel,
+      app: subset[0].entry,
+      excelEntries: [excel],
+      appEntries: subset.map(candidate => candidate.entry)
+    });
+  });
+
+  [...unmatchedExcelIndexes].forEach(excelIndex => {
+    const excel = excelEntries[excelIndex];
+    const sameNameAndDate = [...unmatchedAppIndexes].find(index => {
+      const app = appEntries[index];
+      return namesMatch(app, excel.patientName) && app.paymentDate === excel.paymentDate;
+    });
+    if (sameNameAndDate !== undefined) {
+      unmatchedExcelIndexes.delete(excelIndex);
+      unmatchedAppIndexes.delete(sameNameAndDate);
+      items.push({ status: 'amount-mismatch', excel, app: appEntries[sameNameAndDate] });
+      return;
+    }
+
+    const sameNameAndAmount = [...unmatchedAppIndexes].find(index => {
+      const app = appEntries[index];
+      return namesMatch(app, excel.patientName) && sameAmount(app.paymentAmount, excel.paymentAmount);
+    });
+    if (sameNameAndAmount !== undefined) {
+      unmatchedExcelIndexes.delete(excelIndex);
+      unmatchedAppIndexes.delete(sameNameAndAmount);
+      items.push({ status: 'date-mismatch', excel, app: appEntries[sameNameAndAmount] });
+      return;
+    }
+
+    unmatchedExcelIndexes.delete(excelIndex);
+    items.push({ status: 'excel-only', excel });
+  });
+
+  unmatchedAppIndexes.forEach(index => items.push({ status: 'app-only', app: appEntries[index] }));
+  const count = (status: ReconciliationStatus) => items.filter(item => item.status === status).length;
+
+  return {
+    fileName,
+    fileRowCount: excelEntries.length,
+    ignoredRowCount,
+    items,
+    matchedCount: count('matched'),
+    splitMatchedCount: count('split-matched'),
+    excelOnlyCount: count('excel-only'),
+    appOnlyCount: count('app-only'),
+    dateMismatchCount: count('date-mismatch'),
+    amountMismatchCount: count('amount-mismatch'),
+    excelTotal: excelEntries.reduce((sum, entry) => sum + entry.paymentAmount, 0),
+    appTotal: appEntries.reduce((sum, entry) => sum + entry.paymentAmount, 0),
+    sourceExcelEntries: excelEntries,
+    sourceAppEntries: appEntries
+  };
+};
+
+const uniqueBy = <T>(entries: T[], key: (entry: T) => string) => {
+  const seen = new Set<string>();
+  return entries.filter(entry => {
+    const value = key(entry);
+    if (seen.has(value)) return false;
+    seen.add(value);
+    return true;
+  });
+};
+
 export const paymentReconciliationService = {
   reconcile: async (
     file: File,
     appEntries: AppPaymentForReconciliation[],
     yearMonth: string
   ): Promise<PaymentReconciliationResult> => {
-    const { entries, totalRows, ignoredRows } = await readExcelPayments(file);
-    const excelEntries = entries.filter(entry => entry.paymentDate.startsWith(yearMonth));
-    const appMonthlyEntries = appEntries.filter(entry => entry.paymentDate.startsWith(yearMonth));
-    const unmatchedAppIndexes = new Set(appMonthlyEntries.map((_, index) => index));
-    const items: ReconciliationItem[] = [];
+    const { entries, ignoredRows } = await readExcelPayments(file);
+    return buildResult(file.name, entries, appEntries, yearMonth, ignoredRows);
+  },
 
-    excelEntries.forEach(excel => {
-      const exactIndex = appMonthlyEntries.findIndex((app, index) =>
-        unmatchedAppIndexes.has(index) && namesMatch(app, excel.patientName) && app.paymentDate === excel.paymentDate && app.paymentAmount === excel.paymentAmount
-      );
-      if (exactIndex >= 0) {
-        unmatchedAppIndexes.delete(exactIndex);
-        items.push({ status: 'matched', excel, app: appMonthlyEntries[exactIndex] });
-        return;
-      }
-
-      const sameNameAndDate = appMonthlyEntries.findIndex((app, index) =>
-        unmatchedAppIndexes.has(index) && namesMatch(app, excel.patientName) && app.paymentDate === excel.paymentDate
-      );
-      if (sameNameAndDate >= 0) {
-        unmatchedAppIndexes.delete(sameNameAndDate);
-        items.push({ status: 'amount-mismatch', excel, app: appMonthlyEntries[sameNameAndDate] });
-        return;
-      }
-
-      const sameNameAndAmount = appMonthlyEntries.findIndex((app, index) =>
-        unmatchedAppIndexes.has(index) && namesMatch(app, excel.patientName) && app.paymentAmount === excel.paymentAmount
-      );
-      if (sameNameAndAmount >= 0) {
-        unmatchedAppIndexes.delete(sameNameAndAmount);
-        items.push({ status: 'date-mismatch', excel, app: appMonthlyEntries[sameNameAndAmount] });
-        return;
-      }
-
-      items.push({ status: 'excel-only', excel });
-    });
-
-    unmatchedAppIndexes.forEach(index => items.push({ status: 'app-only', app: appMonthlyEntries[index] }));
-    const count = (status: ReconciliationStatus) => items.filter(item => item.status === status).length;
-
-    return {
-      fileName: file.name,
-      fileRowCount: excelEntries.length,
-      ignoredRowCount: ignoredRows,
-      items,
-      matchedCount: count('matched'),
-      excelOnlyCount: count('excel-only'),
-      appOnlyCount: count('app-only'),
-      dateMismatchCount: count('date-mismatch'),
-      amountMismatchCount: count('amount-mismatch'),
-      excelTotal: excelEntries.reduce((sum, entry) => sum + entry.paymentAmount, 0),
-      appTotal: appMonthlyEntries.reduce((sum, entry) => sum + entry.paymentAmount, 0)
-    };
+  recalculate: (savedResult: PaymentReconciliationResult, yearMonth: string): PaymentReconciliationResult => {
+    const excelEntries = savedResult.sourceExcelEntries || uniqueBy(
+      savedResult.items.flatMap(item => item.excelEntries || (item.excel ? [item.excel] : [])),
+      entry => `${entry.sourceSheet}:${entry.sourceRow}`
+    );
+    const appEntries = savedResult.sourceAppEntries || uniqueBy(
+      savedResult.items.flatMap(item => item.appEntries || (item.app ? [item.app] : [])),
+      entry => `${entry.patientId}:${entry.paymentDate}:${entry.paymentAmount}:${entry.patientName}`
+    );
+    return buildResult(savedResult.fileName, excelEntries, appEntries, yearMonth, savedResult.ignoredRowCount);
   }
 };

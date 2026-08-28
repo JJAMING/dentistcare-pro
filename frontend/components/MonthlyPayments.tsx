@@ -303,18 +303,27 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
         }
     };
 
+    const handleRecalculateSavedReconciliation = () => {
+        if (!savedReconciliation) return;
+        const recalculated = paymentReconciliationService.recalculate(savedReconciliation, selectedYearMonth);
+        const saved = paymentReconciliationStorageService.save(clinicId, selectedYearMonth, recalculated);
+        setReconciliation(saved);
+        setReconciliationView('unmatched');
+    };
+
     const statusMeta: Record<ReconciliationStatus, { label: string; className: string; icon: React.ReactNode }> = {
         matched: { label: '일치', className: 'bg-emerald-100 text-emerald-700', icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+        'split-matched': { label: '합계 일치', className: 'bg-teal-100 text-teal-700', icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
         'excel-only': { label: '엑셀만 있음', className: 'bg-amber-100 text-amber-700', icon: <AlertTriangle className="w-3.5 h-3.5" /> },
         'app-only': { label: '앱만 있음', className: 'bg-blue-100 text-blue-700', icon: <AlertTriangle className="w-3.5 h-3.5" /> },
-        'date-mismatch': { label: '날짜 차이', className: 'bg-rose-100 text-rose-700', icon: <XCircle className="w-3.5 h-3.5" /> },
-        'amount-mismatch': { label: '금액 차이', className: 'bg-rose-100 text-rose-700', icon: <XCircle className="w-3.5 h-3.5" /> }
+        'date-mismatch': { label: '날짜 차이', className: 'bg-violet-100 text-violet-700', icon: <Calendar className="w-3.5 h-3.5" /> },
+        'amount-mismatch': { label: '금액 차이', className: 'bg-orange-100 text-orange-700', icon: <DollarSign className="w-3.5 h-3.5" /> }
     };
 
     const reconciliationItems = useMemo(() => {
         if (!reconciliation) return [];
         if (reconciliationView === 'all') return reconciliation.items;
-        if (reconciliationView === 'unmatched') return reconciliation.items.filter(item => item.status !== 'matched');
+        if (reconciliationView === 'unmatched') return reconciliation.items.filter(item => item.status !== 'matched' && item.status !== 'split-matched');
         return reconciliation.items.filter(item => item.status === reconciliationView);
     }, [reconciliation, reconciliationView]);
 
@@ -347,17 +356,18 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
                                 </div>
                             ) : reconciliation && (
                                 <>
-                                    <div className="grid grid-cols-2 gap-3 border-b border-slate-100 bg-slate-50 p-5 lg:grid-cols-4">
+                                    <div className="grid grid-cols-2 gap-3 border-b border-slate-100 bg-slate-50 p-5 lg:grid-cols-5">
                                         <div className="rounded-xl bg-white p-3 border border-emerald-100"><p className="text-xs font-bold text-slate-400">일치</p><p className="mt-1 text-xl font-black text-emerald-600">{reconciliation.matchedCount}건</p></div>
+                                        <div className="rounded-xl bg-white p-3 border border-teal-100"><p className="text-xs font-bold text-slate-400">합계 일치</p><p className="mt-1 text-xl font-black text-teal-600">{reconciliation.splitMatchedCount || 0}건</p></div>
                                         <div className="rounded-xl bg-white p-3 border border-amber-100"><p className="text-xs font-bold text-slate-400">엑셀만 있음</p><p className="mt-1 text-xl font-black text-amber-600">{reconciliation.excelOnlyCount}건</p></div>
                                         <div className="rounded-xl bg-white p-3 border border-blue-100"><p className="text-xs font-bold text-slate-400">앱만 있음</p><p className="mt-1 text-xl font-black text-blue-600">{reconciliation.appOnlyCount}건</p></div>
-                                        <div className="rounded-xl bg-white p-3 border border-rose-100"><p className="text-xs font-bold text-slate-400">날짜·금액 차이</p><p className="mt-1 text-xl font-black text-rose-600">{reconciliation.dateMismatchCount + reconciliation.amountMismatchCount}건</p></div>
+                                        <div className="rounded-xl bg-white p-3 border border-violet-100"><p className="text-xs font-bold text-slate-400">날짜·금액 차이</p><p className="mt-1 text-xl font-black text-violet-600">{reconciliation.dateMismatchCount + reconciliation.amountMismatchCount}건</p></div>
                                     </div>
                                     <div className="border-b border-slate-100 px-6 py-4 space-y-3">
                                         <div className="flex flex-wrap gap-2">
                                             {([
                                                 ['all', '전체', reconciliation.items.length],
-                                                ['unmatched', '불일치만', reconciliation.items.length - reconciliation.matchedCount]
+                                                ['unmatched', '불일치만', reconciliation.items.length - reconciliation.matchedCount - (reconciliation.splitMatchedCount || 0)]
                                             ] as const).map(([key, label, count]) => (
                                                 <button
                                                     key={key}
@@ -374,6 +384,7 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
                                                 ['excel-only', '엑셀만 있음', reconciliation.excelOnlyCount],
                                                 ['app-only', '앱만 있음', reconciliation.appOnlyCount],
                                                 ['matched', '일치', reconciliation.matchedCount],
+                                                ['split-matched', '합계 일치', reconciliation.splitMatchedCount || 0],
                                                 ['date-mismatch', '날짜 차이', reconciliation.dateMismatchCount],
                                                 ['amount-mismatch', '금액 차이', reconciliation.amountMismatchCount]
                                             ] as const).map(([key, label, count]) => (
@@ -404,6 +415,10 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
                                                     const meta = statusMeta[item.status];
                                                     const excel = item.excel;
                                                     const app = item.app;
+                                                    const excelRows = item.excelEntries || (excel ? [excel] : []);
+                                                    const appRows = item.appEntries || (app ? [app] : []);
+                                                    const excelAmount = excelRows.reduce((sum, entry) => sum + entry.paymentAmount, 0);
+                                                    const appAmount = appRows.reduce((sum, entry) => sum + entry.paymentAmount, 0);
                                                     return (
                                                         <div key={`${item.status}-${index}`} className="rounded-xl border border-slate-100 bg-white p-3">
                                                             <div className="flex flex-wrap items-center gap-2">
@@ -412,8 +427,8 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
                                                                 {app?.chartNumber && <span className="text-xs font-bold text-slate-400">#{app.chartNumber}</span>}
                                                             </div>
                                                             <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
-                                                                <div className="rounded-lg bg-slate-50 px-3 py-2 text-slate-600"><span className="font-bold text-slate-400">엑셀</span> {excel ? `${excel.paymentDate} · ${excel.paymentAmount.toLocaleString()}원` : '없음'}</div>
-                                                                <div className="rounded-lg bg-slate-50 px-3 py-2 text-slate-600"><span className="font-bold text-slate-400">앱</span> {app ? `${app.paymentDate} · ${app.paymentAmount.toLocaleString()}원` : '없음'}</div>
+                                                                <div className="rounded-lg bg-slate-50 px-3 py-2 text-slate-600"><span className="font-bold text-slate-400">엑셀</span> {excelRows.length > 0 ? `${excelRows.length}건 · ${excelAmount.toLocaleString()}원` : '없음'}{excelRows.length > 0 && <span className="ml-1 text-slate-400">({excelRows.map(entry => entry.paymentDate).join(', ')})</span>}</div>
+                                                                <div className="rounded-lg bg-slate-50 px-3 py-2 text-slate-600"><span className="font-bold text-slate-400">앱</span> {appRows.length > 0 ? `${appRows.length}건 · ${appAmount.toLocaleString()}원` : '없음'}{appRows.length > 0 && <span className="ml-1 text-slate-400">({appRows.map(entry => entry.paymentDate).join(', ')})</span>}</div>
                                                             </div>
                                                         </div>
                                                     );
@@ -506,13 +521,22 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
                                 <p className="truncate text-xs text-indigo-500">{savedReconciliation.fileName} · {new Date(savedReconciliation.savedAt).toLocaleString('ko-KR')}</p>
                             </div>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => { setReconciliation(savedReconciliation); setReconciliationView('unmatched'); }}
-                            className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white shadow-sm transition-colors hover:bg-indigo-700"
-                        >
-                            저장된 결과 보기
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={handleRecalculateSavedReconciliation}
+                                className="rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs font-black text-indigo-600 transition-colors hover:bg-indigo-100"
+                            >
+                                새 기준으로 재계산
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setReconciliation(savedReconciliation); setReconciliationView('unmatched'); }}
+                                className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white shadow-sm transition-colors hover:bg-indigo-700"
+                            >
+                                저장된 결과 보기
+                            </button>
+                        </div>
                     </div>
                 )}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-6 py-4 bg-slate-50/50 shrink-0">
