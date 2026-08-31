@@ -318,15 +318,21 @@ export const paymentReconciliationService = {
     return buildResult(file.name, entries, appEntries, yearMonth, ignoredRows);
   },
 
-  recalculate: (savedResult: PaymentReconciliationResult, yearMonth: string): PaymentReconciliationResult => {
+  recalculate: (
+    savedResult: PaymentReconciliationResult,
+    currentAppEntries: AppPaymentForReconciliation[],
+    yearMonth: string
+  ): PaymentReconciliationResult => {
     const excelEntries = savedResult.sourceExcelEntries || uniqueBy(
       savedResult.items.flatMap(item => item.excelEntries || (item.excel ? [item.excel] : [])),
       entry => `${entry.sourceSheet}:${entry.sourceRow}`
     );
-    const appEntries = savedResult.sourceAppEntries || uniqueBy(
-      savedResult.items.flatMap(item => item.appEntries || (item.app ? [item.app] : [])),
-      entry => `${entry.patientId}:${entry.paymentDate}:${entry.paymentAmount}:${entry.patientName}`
+    return buildResult(
+      savedResult.fileName,
+      excelEntries,
+      currentAppEntries,
+      yearMonth,
+      savedResult.ignoredRowCount
     );
-    return buildResult(savedResult.fileName, excelEntries, appEntries, yearMonth, savedResult.ignoredRowCount);
   }
 };

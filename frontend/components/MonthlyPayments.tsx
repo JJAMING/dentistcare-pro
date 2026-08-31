@@ -305,7 +305,20 @@ const MonthlyPayments: React.FC<MonthlyPaymentsProps> = ({ patients, onRefresh }
 
     const handleRecalculateSavedReconciliation = () => {
         if (!savedReconciliation) return;
-        const recalculated = paymentReconciliationService.recalculate(savedReconciliation, selectedYearMonth);
+        const currentAppEntries = monthlyEntries.map(entry => ({
+            patientId: entry.patientId,
+            patientName: entry.patientName,
+            nameAliases: entry.nameAliases,
+            chartNumber: entry.chartNumber,
+            paymentDate: entry.paymentDate,
+            paymentAmount: entry.paymentAmount,
+            paymentNote: entry.paymentNote
+        }));
+        const recalculated = paymentReconciliationService.recalculate(
+            savedReconciliation,
+            currentAppEntries,
+            selectedYearMonth
+        );
         const saved = paymentReconciliationStorageService.save(clinicId, selectedYearMonth, recalculated);
         setReconciliation(saved);
         setReconciliationView('unmatched');
