@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, writeBatch, query, collection, where, getDocs } from "firebase/firestore";
+import { getFirestore, query, collection, where, getDocs } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 import { Patient, User } from '../types';
@@ -21,41 +21,6 @@ export const auth = getAuth(app);
 export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 
 export const firebaseService = {
-  /**
-   * 로컬 스토리지의 전체 데이터를 Firestore로 업로드 (일괄 동기화)
-   */
-  syncToCloud: async (patients: Patient[], doctors: string[], clinicId: string, deletedPatientIds: string[] = []) => {
-    try {
-      const batch = writeBatch(db);
-
-      // 1. 환자 데이터 업로드 (ID를 문서 키로 사용)
-      patients.forEach((patient) => {
-        const patientRef = doc(db, 'patients', patient.id);
-        batch.set(patientRef, { 
-            ...patient, 
-            clinicId: clinicId // 현재 로그안한 치과의 고유 ID 사용
-        });
-      });
-
-      // 2. 원장 목록 업로드
-      const activePatientIds = new Set(patients.map(patient => patient.id));
-      const patientIdsToDelete = [...new Set(deletedPatientIds)]
-        .filter(id => id && !activePatientIds.has(id));
-      patientIdsToDelete.forEach((patientId) => {
-        batch.delete(doc(db, 'patients', patientId));
-      });
-
-      const configRef = doc(db, 'config', 'doctors');
-      batch.set(configRef, { list: doctors, updatedAt: new Date().toISOString() });
-
-      await batch.commit();
-      return { success: true };
-    } catch (error) {
-      console.error('Cloud Sync error:', error);
-      throw error;
-    }
-  },
-
   /**
    * Firestore에서 해당 치과의 전체 데이터를 가져오고 로컬 스토리지에 병합
    */

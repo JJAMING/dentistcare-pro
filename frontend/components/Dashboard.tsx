@@ -22,7 +22,6 @@ import {
   MessageSquare,
   Award,
   MapPin,
-  Cloud,
   Check
 } from 'lucide-react';
 import {
@@ -42,8 +41,6 @@ import {
   Pie,
   Legend
 } from 'recharts';
-import { firebaseService } from '../services/firebaseService';
-import { storageService } from '../services/storageService';
 import { authService } from '../services/authService';
 
 interface DashboardProps {
@@ -77,8 +74,6 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
   const [visitPathYearOffset, setVisitPathYearOffset] = useState(0);
 
   const [modalData, setModalData] = useState<{ title: string; list: Patient[] } | null>(null);
-  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState<string | null>(localStorage.getItem('LAST_CLOUD_SYNC'));
 
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
@@ -418,35 +413,6 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
     setModalData({ title, list });
   };
 
-  const handleCloudSync = async () => {
-    if (!window.confirm('현재 브라우저의 모든 데이터를 클라우드(Firebase)로 업로드하시겠습니까?')) return;
-    
-    setIsCloudSyncing(true);
-    try {
-      const user = authService.getCurrentUser();
-      if (!user) {
-        alert('로그인 정보가 없습니다. 다시 로그인해 주세요.');
-        return;
-      }
-
-      const currentPatients = storageService.getPatients();
-      const currentDoctors = storageService.getDoctors();
-      const deletedPatientIds = storageService.getDeletedPatientIds();
-      
-      await firebaseService.syncToCloud(currentPatients, currentDoctors, user.clinicId, deletedPatientIds);
-      storageService.clearDeletedPatientIds(deletedPatientIds);
-      
-      const now = new Date().toLocaleString();
-      setLastSyncTime(now);
-      localStorage.setItem('LAST_CLOUD_SYNC', now);
-      alert('클라우드 동기화가 완료되었습니다!');
-    } catch (error) {
-      alert('클라우드 동기화 중 오류가 발생했습니다. 설정값을 확인해 주세요.');
-    } finally {
-      setIsCloudSyncing(false);
-    }
-  };
-
   return (
     <div className="space-y-6 lg:space-y-8 animate-in fade-in duration-700 pb-16">
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
@@ -460,18 +426,6 @@ const Dashboard: React.FC<DashboardProps> = ({ patients }) => {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 lg:gap-3">
-          <button
-            onClick={handleCloudSync}
-            disabled={isCloudSyncing}
-            className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border text-sm font-black shadow-sm transition-all ${
-              isCloudSyncing 
-                ? 'bg-blue-50 border-blue-200 text-blue-400 cursor-not-allowed' 
-                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            <Cloud className={`w-4 h-4 ${isCloudSyncing ? 'animate-pulse' : ''}`} />
-            {isCloudSyncing ? '동기화 중...' : '클라우드 업로드'}
-          </button>
           <div className="flex-1 lg:flex-none bg-emerald-50 text-emerald-700 px-4 py-2.5 rounded-2xl border border-emerald-100 flex items-center justify-center gap-2">
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
             <span className="text-sm font-bold whitespace-nowrap">오늘 {patients.filter(p => {
