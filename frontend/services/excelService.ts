@@ -4,10 +4,13 @@ import { Patient } from '../types';
 const GUIDE_SHEET = '안내';
 const PATIENT_SHEET = '환자목록';
 const BACKUP_COLUMN = '전체 데이터(JSON)';
-const PATIENT_HEADERS = [
+const VISIBLE_HEADERS = [
   '차트번호', '이름', '연락처', '생년월일', '성별', '등록일', '최근 방문일',
-  '다음 리콜일', '다음 리콜 내용', '내원 경로', '상세 내원 경로', '상태', '진료 건수', BACKUP_COLUMN
+  '다음 리콜일', '다음 리콜 내용', '내원 경로', '상세 내원 경로', '상태', '진료 건수'
 ];
+// 엑셀 셀은 32,767자를 넘으면 저장 시 오류가 나므로, 백업 JSON이 길어지면 숨김 열을 여러 개로 나눠 담는다.
+const BACKUP_CHUNK_CHARS = 30000;
+const backupColumnName = (chunkIndex: number) => (chunkIndex === 0 ? BACKUP_COLUMN : `${BACKUP_COLUMN}${chunkIndex + 1}`);
 
 type ExcelRow = Record<string, unknown>;
 
@@ -92,13 +95,22 @@ const parseBackup = (value: unknown): Partial<Patient> | null => {
   }
 };
 
+/** 여러 숨김 열(전체 데이터(JSON), 전체 데이터(JSON)2, ...)에 나뉘어 저장된 백업 JSON을 이어붙인다. */
+const readBackupCell = (row: ExcelRow): string => {
+  let combined = '';
+  for (let i = 0; backupColumnName(i) in row; i++) {
+    combined += text(row[backupColumnName(i)]);
+  }
+  return combined;
+};
+
 const getDate = (row: ExcelRow, header: string, fallback = '') => {
   const parsed = normalizeDate(row[header]);
   return parsed.value ? parsed : { value: fallback, valid: true };
 };
 
 const makePatient = (row: ExcelRow, clinicId: string, patientId: string): { patient?: Patient; error?: string } => {
-  const backupCell = text(row[BACKUP_COLUMN]);
+  const backupCell = readBackupCell(row);
   const backup = parseBackup(backupCell);
   if (backupCell && !backup) return { error: '전체 백업 데이터 형식이 올바르지 않습니다.' };
 
@@ -126,6 +138,8 @@ const makePatient = (row: ExcelRow, clinicId: string, patientId: string): { pati
     lastVisit: lastVisit.value,
     nextRecallDate: nextRecallDate.value,
     nextRecallContent: text(row['다음 리콜 내용']) || text(raw.nextRecallContent),
+    nextRecallTime: text(raw.nextRecallTime) || undefined,
+    appointmentHistory: Array.isArray(raw.appointmentHistory) ? raw.appointmentHistory : undefined,
     visitPath: text(row['내원 경로']) || text(raw.visitPath),
     visitPathDetail: text(row['상세 내원 경로']) || text(raw.visitPathDetail),
     treatments: Array.isArray(raw.treatments) ? raw.treatments : [],
@@ -142,12 +156,14 @@ const makePatient = (row: ExcelRow, clinicId: string, patientId: string): { pati
   return { patient };
 };
 
-const makeSheet = (rows: ExcelRow[]) => {
-  const sheet = XLSX.utils.aoa_to_sheet([PATIENT_HEADERS]);
-  if (rows.length > 0) XLSX.utils.sheet_add_json(sheet, rows, { origin: 'A2', skipHeader: true });
+const makeSheet = (rows: ExcelRow[], headers: string[]) => {
+  const sheet = XLSX.utils.aoa_to_sheet([headers]);
+  if (rows.length > 0) XLSX.utils.sheet_add_json(sheet, rows, { origin: 'A2', skipHeader: true, header: headers });
+  const backupColumnCount = headers.length - VISIBLE_HEADERS.length;
   sheet['!cols'] = [
     { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 12 },
-    { wch: 12 }, { wch: 32 }, { wch: 14 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 2, hidden: true }
+    { wch: 12 }, { wch: 32 }, { wch: 14 }, { wch: 20 }, { wch: 10 }, { wch: 10 },
+    ...Array.from({ length: backupColumnCount }, () => ({ wch: 2, hidden: true }))
   ];
   sheet['!freeze'] = { xSplit: 0, ySplit: 1 };
   return sheet;
@@ -155,22 +171,33 @@ const makeSheet = (rows: ExcelRow[]) => {
 
 export const excelService = {
   exportToExcel: (patients: Patient[]) => {
-    const rows = patients.map(patient => ({
-      '차트번호': escapeFormula(patient.chartNumber),
-      '이름': escapeFormula(patient.name),
-      '연락처': escapeFormula(patient.phone),
-      '생년월일': patient.birthDate,
-      '성별': patient.gender || '',
-      '등록일': patient.registrationDate,
-      '최근 방문일': patient.lastVisit,
-      '다음 리콜일': patient.nextRecallDate,
-      '다음 리콜 내용': escapeFormula(patient.nextRecallContent),
-      '내원 경로': escapeFormula(patient.visitPath || ''),
-      '상세 내원 경로': escapeFormula(patient.visitPathDetail || ''),
-      '상태': patient.status,
-      '진료 건수': patient.treatments?.length || 0,
-      [BACKUP_COLUMN]: JSON.stringify(patient)
-    }));
+    const backups = patients.map(patient => JSON.stringify(patient));
+    const chunkCount = Math.max(1, ...backups.map(backup => Math.ceil(backup.length / BACKUP_CHUNK_CHARS) || 1));
+    const headers = [...VISIBLE_HEADERS, ...Array.from({ length: chunkCount }, (_, i) => backupColumnName(i))];
+
+    const rows = patients.map((patient, index) => {
+      const backup = backups[index];
+      const backupCells: ExcelRow = {};
+      for (let i = 0; i < chunkCount; i++) {
+        backupCells[backupColumnName(i)] = backup.slice(i * BACKUP_CHUNK_CHARS, (i + 1) * BACKUP_CHUNK_CHARS);
+      }
+      return {
+        '차트번호': escapeFormula(patient.chartNumber),
+        '이름': escapeFormula(patient.name),
+        '연락처': escapeFormula(patient.phone),
+        '생년월일': patient.birthDate,
+        '성별': patient.gender || '',
+        '등록일': patient.registrationDate,
+        '최근 방문일': patient.lastVisit,
+        '다음 리콜일': patient.nextRecallDate,
+        '다음 리콜 내용': escapeFormula(patient.nextRecallContent),
+        '내원 경로': escapeFormula(patient.visitPath || ''),
+        '상세 내원 경로': escapeFormula(patient.visitPathDetail || ''),
+        '상태': patient.status,
+        '진료 건수': patient.treatments?.length || 0,
+        ...backupCells
+      };
+    });
 
     const guide = XLSX.utils.aoa_to_sheet([
       ['DentistCare 환자 전체 백업'],
@@ -184,7 +211,7 @@ export const excelService = {
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, guide, GUIDE_SHEET);
-    XLSX.utils.book_append_sheet(workbook, makeSheet(rows), PATIENT_SHEET);
+    XLSX.utils.book_append_sheet(workbook, makeSheet(rows, headers), PATIENT_SHEET);
     XLSX.writeFile(workbook, `DentistCare_환자전체백업_${today()}.xlsx`);
   },
 
@@ -208,7 +235,7 @@ export const excelService = {
           let invalidCount = 0;
 
           rows.forEach((row, index) => {
-            const backup = parseBackup(row[BACKUP_COLUMN]);
+            const backup = parseBackup(readBackupCell(row));
             const chartNumber = text(row['차트번호']) || text(backup?.chartNumber);
             if (existingChartNumbers.has(chartNumber) || fileChartNumbers.has(chartNumber)) {
               skippedCount++;
