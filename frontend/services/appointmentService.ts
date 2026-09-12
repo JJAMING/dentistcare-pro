@@ -28,13 +28,18 @@ export const getAppointmentHistory = (patient: Patient): AppointmentRecord[] => 
   const history = [...(patient.appointmentHistory || [])];
   if (!patient.nextRecallDate) return history;
 
-  const hasCurrentAppointment = history.some(record => record.date === patient.nextRecallDate);
-  if (!hasCurrentAppointment) {
+  const currentIndex = history.findIndex(record => record.date === patient.nextRecallDate);
+  if (currentIndex === -1) {
     history.push(createRecord(
       patient.nextRecallDate,
       patient.nextRecallContent || '',
-      patient.lastVisit === patient.nextRecallDate ? 'visited' : 'scheduled'
+      patient.lastVisit === patient.nextRecallDate ? 'visited' : 'scheduled',
+      'manual',
+      patient.nextRecallTime
     ));
+  } else if (!history[currentIndex].time && patient.nextRecallTime) {
+    // 이미 이력에 있는 현재 예약이지만 시간이 비어 있다면, 수동으로 입력한 시간으로 보완한다.
+    history[currentIndex] = { ...history[currentIndex], time: patient.nextRecallTime };
   }
   return history.sort((a, b) => a.date.localeCompare(b.date));
 };
@@ -75,6 +80,7 @@ export const applyDentwebAppointment = (
     lastVisit,
     nextRecallDate: nextRecallDate || patient.nextRecallDate,
     nextRecallContent: nextRecallDate ? nextRecallContent : patient.nextRecallContent,
+    nextRecallTime: nextRecallDate ? (nextRecallTime || patient.nextRecallTime) : patient.nextRecallTime,
     appointmentHistory: history.sort((a, b) => a.date.localeCompare(b.date))
   };
 };
@@ -84,6 +90,13 @@ export const appointmentDisplayStatus = (record: AppointmentRecord): Appointment
 
 export const appointmentTimeForDate = (patient: Patient, date: string): string =>
   getAppointmentHistory(patient).find(record => record.date === date)?.time || '';
+
+/** 저장 형식 'HHmm' -> <input type="time"> 표시 형식 'HH:mm' */
+export const timeToInputValue = (time?: string): string =>
+  time && /^\d{4}$/.test(time) ? `${time.slice(0, 2)}:${time.slice(2)}` : '';
+
+/** <input type="time"> 값 'HH:mm' -> 저장 형식 'HHmm' */
+export const timeFromInputValue = (value: string): string => value.replace(':', '');
 
 export const updateAppointmentStatus = (
   patient: Patient,

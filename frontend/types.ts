@@ -70,6 +70,7 @@ export interface Patient {
   lastVisit: string;
   nextRecallDate: string;
   nextRecallContent: string;
+  nextRecallTime?: string;  // 다음 예약 시간 'HHmm' (예: '1430')
   appointmentHistory?: AppointmentRecord[];
   visitPath?: string;
   visitPathDetail?: string;

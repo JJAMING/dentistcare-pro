@@ -12,7 +12,7 @@ import {
   Clock3
 } from 'lucide-react';
 import { AppointmentRecord, AppointmentStatus, Patient } from '../types';
-import { appointmentDisplayStatus, getAppointmentHistory, updateAppointmentStatus } from '../services/appointmentService';
+import { appointmentDisplayStatus, getAppointmentHistory, timeToInputValue, updateAppointmentStatus } from '../services/appointmentService';
 import { storageService } from '../services/storageService';
 
 interface CalendarViewProps {
@@ -25,9 +25,6 @@ const statusPresentation: Record<AppointmentStatus, { label: string; className: 
   visited: { label: '\uB0B4\uC6D0', className: 'bg-emerald-100 text-emerald-700', icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
   'no-show': { label: '\uBBF8\uC774\uD589', className: 'bg-rose-100 text-rose-700', icon: <AlertTriangle className="h-3.5 w-3.5" /> }
 };
-
-const formatAppointmentTime = (time?: string) =>
-  time && /^\d{4}$/.test(time) ? `${time.slice(0, 2)}:${time.slice(2)}` : '';
 
 const CalendarView: React.FC<CalendarViewProps> = ({ patients, onRefresh }) => {
   const navigate = useNavigate();
@@ -240,7 +237,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ patients, onRefresh }) => {
                           {appointment.time && (
                             <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-indigo-50 px-2 py-1 text-xs font-black text-indigo-600">
                               <Clock3 className="h-3.5 w-3.5" />
-                              {formatAppointmentTime(appointment.time)}
+                              {timeToInputValue(appointment.time)}
                             </span>
                           )}
                           <span className="shrink-0 rounded-md bg-white px-2 py-1 text-xs font-bold text-slate-400">

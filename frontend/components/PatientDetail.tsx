@@ -24,13 +24,14 @@ import {
   UserCheck,
   Check,
   CreditCard,
-  Bell
+  Bell,
+  Clock
 } from 'lucide-react';
 import { Patient, Treatment, Payment, DeletedPayment, TreatmentMemo } from '../types';
 import { storageService } from '../services/storageService';
 import { geminiService } from '../services/geminiService';
 import { dentwebService } from '../services/dentwebService';
-import { applyDentwebAppointment, updateAppointmentStatus } from '../services/appointmentService';
+import { applyDentwebAppointment, timeFromInputValue, timeToInputValue, updateAppointmentStatus } from '../services/appointmentService';
 import { RefreshCw, Link as LinkIcon, BadgeDollarSign } from 'lucide-react';
 
 interface PatientDetailProps {
@@ -232,7 +233,8 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
       completedRecallDates: [...(patient.completedRecallDates || []), patient.nextRecallDate],
       lastVisit: todayStr,
       nextRecallDate: '',
-      nextRecallContent: ''
+      nextRecallContent: '',
+      nextRecallTime: ''
     };
     setPatient(updatedPatient);
     storageService.updatePatient(updatedPatient);
@@ -245,6 +247,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
       ...patient,
       nextRecallDate: '',
       nextRecallContent: '',
+      nextRecallTime: '',
       recallExcluded: false // 수동으로 지웠으므로 리콜 미설정 탭에 보임
     };
     setPatient(updatedPatient);
@@ -580,14 +583,25 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ onRefresh }) => {
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">다음 리콜일</label>
-                <div className="relative">
-                  <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="date"
-                    className="w-full bg-blue-50/50 border border-blue-200 rounded-xl pl-10 pr-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 font-bold"
-                    value={patient.nextRecallDate}
-                    onChange={e => setPatient({ ...patient, nextRecallDate: e.target.value })}
-                  />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="date"
+                      className="w-full bg-blue-50/50 border border-blue-200 rounded-xl pl-10 pr-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 font-bold"
+                      value={patient.nextRecallDate}
+                      onChange={e => setPatient({ ...patient, nextRecallDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="relative w-32">
+                    <Clock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="time"
+                      className="w-full bg-blue-50/50 border border-blue-200 rounded-xl pl-10 pr-2 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-blue-700 font-bold"
+                      value={timeToInputValue(patient.nextRecallTime)}
+                      onChange={e => setPatient({ ...patient, nextRecallTime: timeFromInputValue(e.target.value) })}
+                    />
+                  </div>
                 </div>
               </div>
 
