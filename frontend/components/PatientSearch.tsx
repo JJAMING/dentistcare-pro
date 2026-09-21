@@ -101,9 +101,10 @@ const PatientSearch: React.FC<PatientSearchProps> = ({ patients, onRefresh, user
       birthDate: raw.birthDate || '',
       gender: raw.gender,
       registrationDate: new Date().toISOString().split('T')[0],
-      lastVisit: raw.lastVisitDate
+      // 백엔드가 이미 'YYYY-MM-DD'로 주므로 그대로 쓰고, 8자리 숫자('YYYYMMDD')로 오는 경우만 변환한다.
+      lastVisit: /^\d{8}$/.test(raw.lastVisitDate || '')
         ? `${raw.lastVisitDate.substring(0, 4)}-${raw.lastVisitDate.substring(4, 6)}-${raw.lastVisitDate.substring(6, 8)}`
-        : '',
+        : (raw.lastVisitDate || ''),
       // 2. 다음 리콜일 → 덴트웹 예약일 사용
       nextRecallDate: appt.hasAppointment ? (appt.appointmentDate || '') : '',
       // 3. 예약 메모 → 덴트웹 예약내용 사용
