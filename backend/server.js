@@ -218,6 +218,52 @@ app.get('/api/dentweb/daily-sync', verifyToken, dailySyncRules, async (req, res)
 });
 
 // ────────────────────────────────────────
+// 3-2) 특정 날짜의 예약 전체 조회 API (이행현황 포함)
+//    GET /api/dentweb/appointments-by-date?date=YYYY-MM-DD
+//    지난 예약의 내원 여부(n이행현황)를 확인하기 위한 용도.
+//    n이행현황: 0=예약, 1=접수, 2=진료중, 그 외=진행/완료 (0보다 크면 내원)
+// ────────────────────────────────────────
+app.get('/api/dentweb/appointments-by-date', verifyToken, dailySyncRules, async (req, res) => {
+    const { date } = req.query;
+
+    try {
+        const pool = await mssql.connect(dbConfig);
+        const searchDate = date.replace(/-/g, '');
+
+        const result = await pool.request()
+            .input('date', mssql.VarChar(8), searchDate)
+            .query(`
+                SELECT
+                    a.n환자ID       AS patientId,
+                    p.sz차트번호    AS chartNumber,
+                    p.sz최종내원일  AS lastVisitDate,
+                    a.sz예약시각    AS appointmentTime,
+                    a.sz예약내용    AS appointmentContent,
+                    a.sz메모        AS memo,
+                    a.n이행현황     AS status
+                FROM PUB_V예약정보 a
+                JOIN PUB_V환자정보 p ON p.n환자ID = a.n환자ID
+                WHERE LEFT(a.sz예약시각, 8) = @date
+                ORDER BY a.sz예약시각 ASC
+            `);
+
+        res.json(result.recordset.map(row => ({
+            patientId: row.patientId,
+            chartNumber: row.chartNumber,
+            lastVisitDate: formatBirthDate(row.lastVisitDate), // 'YYYY-MM-DD'
+            appointmentDate: formatAppointmentDate(row.appointmentTime),
+            appointmentTime: row.appointmentTime ? row.appointmentTime.substring(8, 12) : '',
+            appointmentContent: row.appointmentContent || '',
+            memo: row.memo || '',
+            status: row.status
+        })));
+    } catch (err) {
+        console.error('DB error (appointments-by-date):', err.message);
+        res.status(500).json({ error: 'Database error', details: err.message });
+    }
+});
+
+// ────────────────────────────────────────
 // 4) 헬스체크 API
 // ────────────────────────────────────────
 app.get('/api/health', async (req, res) => {

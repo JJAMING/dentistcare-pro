@@ -9,11 +9,13 @@ import {
   X,
   CheckCircle2,
   AlertTriangle,
-  Clock3
+  Clock3,
+  RefreshCw
 } from 'lucide-react';
 import { AppointmentRecord, AppointmentStatus, Patient } from '../types';
-import { appointmentDisplayStatus, getAppointmentHistory, timeToInputValue, updateAppointmentStatus } from '../services/appointmentService';
+import { appointmentDisplayStatus, getAppointmentHistory, reconcileWithDentweb, timeToInputValue, updateAppointmentStatus } from '../services/appointmentService';
 import { storageService } from '../services/storageService';
+import { dentwebService } from '../services/dentwebService';
 
 interface CalendarViewProps {
   patients: Patient[];
@@ -26,10 +28,16 @@ const statusPresentation: Record<AppointmentStatus, { label: string; className: 
   'no-show': { label: '\uBBF8\uC774\uD589', className: 'bg-rose-100 text-rose-700', icon: <AlertTriangle className="h-3.5 w-3.5" /> }
 };
 
+const toDateString = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+type DentwebSyncState = 'idle' | 'syncing' | 'done' | 'failed';
+
 const CalendarView: React.FC<CalendarViewProps> = ({ patients, onRefresh }) => {
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [syncState, setSyncState] = useState<DentwebSyncState>('idle');
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -55,7 +63,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ patients, onRefresh }) => {
   }
 
   const getAppointmentsForDate = (date: Date) => {
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const dateStr = toDateString(date);
     return patients.flatMap(patient =>
       getAppointmentHistory(patient)
         .filter(appointment => appointment.date === dateStr)
@@ -78,6 +86,33 @@ const CalendarView: React.FC<CalendarViewProps> = ({ patients, onRefresh }) => {
         weekday: 'short',
       }).format(selectedDate)
     : '';
+
+  // 날짜를 열 때마다 덴트웹의 그날 예약(이행현황 포함)과 맞춰 내원 여부/시간을 갱신한다.
+  useEffect(() => {
+    if (!selectedDate) {
+      setSyncState('idle');
+      return;
+    }
+
+    let closed = false;
+    const dateStr = toDateString(selectedDate);
+    setSyncState('syncing');
+    (async () => {
+      const rows = await dentwebService.getAppointmentsForDate(dateStr);
+      if (rows) {
+        const { patients: reconciled, changed } = reconcileWithDentweb(storageService.getPatients(), dateStr, rows);
+        if (changed) {
+          storageService.savePatients(reconciled);
+          onRefresh();
+        }
+      }
+      if (!closed) setSyncState(rows ? 'done' : 'failed');
+    })();
+
+    return () => {
+      closed = true;
+    };
+  }, [selectedDate]);
 
   useEffect(() => {
     if (!selectedDate) return;
@@ -190,8 +225,18 @@ const CalendarView: React.FC<CalendarViewProps> = ({ patients, onRefresh }) => {
                 <h3 id="appointment-modal-title" className="mt-1 text-xl font-black text-slate-800">
                   {selectedDateLabel}
                 </h3>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
                   예약 환자 {selectedAppointments.length}명
+                  {syncState === 'syncing' && (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold text-blue-500">
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      덴트웹 동기화 중...
+                    </span>
+                  )}
+                  {syncState === 'done' && <span className="text-xs font-bold text-emerald-600">덴트웹과 동기화됨</span>}
+                  {syncState === 'failed' && (
+                    <span className="text-xs font-bold text-amber-600">덴트웹 연결 실패 · 저장된 정보 표시 중</span>
+                  )}
                 </p>
               </div>
               <button

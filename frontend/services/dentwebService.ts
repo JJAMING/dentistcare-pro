@@ -68,7 +68,35 @@ export type UpcomingAppointmentLookup =
     | { status: 'not-found' }
     | { status: 'error'; message: string };
 
+/** 특정 날짜의 덴트웹 예약 1건 (이행현황 포함) */
+export interface DentwebDayAppointment {
+    patientId: number;
+    chartNumber: string;
+    lastVisitDate: string;      // 'YYYY-MM-DD'
+    appointmentDate: string;    // 'YYYY-MM-DD'
+    appointmentTime: string;    // 'HHmm'
+    appointmentContent: string;
+    memo: string;
+    status: number;             // 0:예약, 1:접수, 2:진료중 ... (0보다 크면 내원)
+}
+
 export const dentwebService = {
+    /**
+     * 특정 날짜의 덴트웹 예약 전체를 이행현황과 함께 조회한다. 실패하면 null.
+     */
+    getAppointmentsForDate: async (date: string): Promise<DentwebDayAppointment[] | null> => {
+        try {
+            const headers = await getAuthHeaders();
+            const res = await fetch(`${getApiUrl()}/dentweb/appointments-by-date?date=${encodeURIComponent(date)}`, { headers });
+            if (!res.ok) return null;
+            const rows = await res.json();
+            return Array.isArray(rows) ? rows : null;
+        } catch (err) {
+            console.error('DentWeb appointments-by-date error:', err);
+            return null;
+        }
+    },
+
     /**
      * 차트번호로 덴트웹 환자의 다음 예약을 조회한다.
      * searchPatients/getNextAppointment와 달리 통신 오류를 "예약 없음"으로 삼키지 않는다.
