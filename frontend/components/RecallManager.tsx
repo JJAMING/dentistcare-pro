@@ -4,7 +4,7 @@ import { Patient } from '../types';
 import { Bell, Calendar, Phone, CheckCircle, ChevronRight, AlertTriangle, XCircle, MessageSquare, X, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { storageService } from '../services/storageService';
-import { dentwebService } from '../services/dentwebService';
+import { dentwebService, UpcomingAppointmentLookup } from '../services/dentwebService';
 import { applyDentwebAppointment, appointmentTimeForDate } from '../services/appointmentService';
 
 interface RecallManagerProps {
@@ -21,6 +21,9 @@ const RecallManager: React.FC<RecallManagerProps> = ({ patients, onRefresh }) =>
   // 제외 확인 팝업용 상태
   const [confirmDismiss, setConfirmDismiss] = useState<Patient | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  // 리콜 지남 일괄 정리 상태
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const [bulkResult, setBulkResult] = useState<{ resolved: number; none: number; failed: number } | null>(null);
 
   // 리콜 탭 진입 시 오늘 날짜로 자동 실시간 연동
   useEffect(() => {
@@ -125,6 +128,69 @@ const RecallManager: React.FC<RecallManagerProps> = ({ patients, onRefresh }) =>
     upcoming: '다가오는 리콜 예정이 없습니다.',
   };
 
+  /**
+   * 리콜 지남 환자 중 덴트웹에 오늘 이후 예약이 확인된 환자는 다음 예약으로 갱신(=리콜 예정으로 이동)하고,
+   * 예약이 없거나 조회에 실패한 환자는 그대로 남겨 수동 처리하게 한다.
+   */
+  const handleBulkResolveOverdue = async () => {
+    const targets = overdue;
+    if (targets.length === 0 || bulkProgress) return;
+    if (!window.confirm(`리콜 지남 ${targets.length}명의 덴트웹 예약을 확인합니다.\n오늘 이후 예약이 있는 환자는 리콜 예정으로 이동하고, 예약이 없는 환자만 남깁니다.\n진행할까요?`)) return;
+
+    setBulkResult(null);
+    setBulkProgress({ done: 0, total: targets.length });
+    try {
+      if (!(await dentwebService.checkHealth())) {
+        alert('덴트웹 서버에 연결할 수 없습니다. 설정에서 서버 주소를 확인해 주세요.\n변경된 내용은 없습니다.');
+        return;
+      }
+
+      const lookups = new Map<string, UpcomingAppointmentLookup>();
+      let cursor = 0;
+      let done = 0;
+      const worker = async () => {
+        while (cursor < targets.length) {
+          const p = targets[cursor++];
+          lookups.set(p.id, await dentwebService.lookupUpcomingAppointment(p.chartNumber));
+          setBulkProgress({ done: ++done, total: targets.length });
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(4, targets.length) }, worker));
+
+      let resolved = 0;
+      let none = 0;
+      let failed = 0;
+      const updated = storageService.getPatients().map(p => {
+        const lookup = lookups.get(p.id);
+        if (!lookup) return p;
+        if (lookup.status === 'found' && lookup.appointmentDate >= today) {
+          resolved++;
+          return {
+            ...applyDentwebAppointment(
+              p,
+              lookup.appointmentDate,
+              lookup.content,
+              lookup.isVisitedToday ? today : p.lastVisit,
+              lookup.appointmentTime
+            ),
+            dentwebPatientId: lookup.patientId
+          };
+        }
+        if (lookup.status === 'found' || lookup.status === 'none') none++;
+        else failed++;
+        return p;
+      });
+
+      if (resolved > 0) {
+        storageService.savePatients(updated);
+        onRefresh();
+      }
+      setBulkResult({ resolved, none, failed });
+    } finally {
+      setBulkProgress(null);
+    }
+  };
+
   const handleDismissConfirm = () => {
     if (!confirmDismiss) return;
     storageService.updatePatient({ ...confirmDismiss, recallExcluded: true });
@@ -221,9 +287,35 @@ const RecallManager: React.FC<RecallManagerProps> = ({ patients, onRefresh }) =>
         </div>
       )}
       {activeTab === 'overdue' && (
-        <div className="flex items-center gap-2 px-4 py-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-500">
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          리콜 예정일이 지났지만 아직 방문하지 않은 환자입니다. 빠른 연락이 필요합니다.
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-500">
+            <span className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              리콜 예정일이 지났지만 아직 방문하지 않은 환자입니다. 빠른 연락이 필요합니다.
+            </span>
+            {overdue.length > 0 && (
+              <button
+                onClick={handleBulkResolveOverdue}
+                disabled={!!bulkProgress || isSyncing}
+                className="flex items-center gap-1.5 px-3 py-2 bg-rose-600 text-white rounded-xl font-black hover:bg-rose-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${bulkProgress ? 'animate-spin' : ''}`} />
+                {bulkProgress ? `덴트웹 예약 확인 중 ${bulkProgress.done}/${bulkProgress.total}` : '덴트웹 예약 확인 후 일괄 정리'}
+              </button>
+            )}
+          </div>
+          {bulkResult && (
+            <div className="flex items-center justify-between gap-3 px-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-600">
+              <span>
+                <span className="text-emerald-600">{bulkResult.resolved}명 리콜 예정으로 이동</span>
+                {' · '}예약 없음 {bulkResult.none}명 (수동 처리 필요)
+                {bulkResult.failed > 0 && <span className="text-rose-500"> · 조회 실패 {bulkResult.failed}명 (덴트웹에서 찾지 못했거나 통신 오류)</span>}
+              </span>
+              <button onClick={() => setBulkResult(null)} className="p-1 text-slate-300 hover:text-slate-600" aria-label="결과 닫기">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 

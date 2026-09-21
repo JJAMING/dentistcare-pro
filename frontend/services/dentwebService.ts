@@ -54,7 +54,53 @@ export interface DentwebSyncResult {
     chartNumber?: string;
 }
 
+/** 예약 조회 결과 — "예약 없음"과 "조회 실패"를 구분한다. */
+export type UpcomingAppointmentLookup =
+    | {
+        status: 'found';
+        patientId: number;
+        appointmentDate: string;
+        appointmentTime: string;
+        content: string;
+        isVisitedToday: boolean;
+    }
+    | { status: 'none'; patientId: number }
+    | { status: 'not-found' }
+    | { status: 'error'; message: string };
+
 export const dentwebService = {
+    /**
+     * 차트번호로 덴트웹 환자의 다음 예약을 조회한다.
+     * searchPatients/getNextAppointment와 달리 통신 오류를 "예약 없음"으로 삼키지 않는다.
+     */
+    lookupUpcomingAppointment: async (chartNumber: string): Promise<UpcomingAppointmentLookup> => {
+        try {
+            const headers = await getAuthHeaders();
+            const searchRes = await fetch(`${getApiUrl()}/dentweb/patients?query=${encodeURIComponent(chartNumber)}`, { headers });
+            if (!searchRes.ok) return { status: 'error', message: `환자 조회 실패 (${searchRes.status})` };
+            const patients: DentwebPatientRaw[] = await searchRes.json();
+            const matched = patients.find(p => p.chartNumber === chartNumber);
+            if (!matched) return { status: 'not-found' };
+
+            const apptRes = await fetch(`${getApiUrl()}/dentweb/appointments/${matched.patientId}`, { headers });
+            if (!apptRes.ok) return { status: 'error', message: `예약 조회 실패 (${apptRes.status})` };
+            const appt: DentwebAppointment = await apptRes.json();
+            if (!appt.hasAppointment || !appt.appointmentDate) return { status: 'none', patientId: matched.patientId };
+
+            const today = new Date().toISOString().split('T')[0];
+            return {
+                status: 'found',
+                patientId: matched.patientId,
+                appointmentDate: appt.appointmentDate,
+                appointmentTime: appt.appointmentTime || '',
+                content: [appt.appointmentContent, appt.memo].filter(Boolean).join(' / '),
+                isVisitedToday: appt.appointmentDate === today && !!appt.status && appt.status > 0
+            };
+        } catch (err) {
+            return { status: 'error', message: err instanceof Error ? err.message : '알 수 없는 오류' };
+        }
+    },
+
     /**
      * 환자 검색 (이름, 차트번호, 전화번호)
      */
