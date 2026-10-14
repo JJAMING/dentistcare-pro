@@ -103,7 +103,7 @@ export const applyDentwebAppointment = (
 /**
  * 특정 날짜의 덴트웹 예약(이행현황 포함)을 앱의 예약 이력에 맞춘다.
  * - 덴트웹에서 내원(이행현황 > 0)한 예약은 '예정' → '내원'으로 바꾸고 최근 방문일을 갱신
- * - 앱 기록에 시간/내용이 비어 있으면 덴트웹 값으로 채움 (덴트웹에서 온 기록은 시간을 덴트웹 기준으로 유지)
+ * - 앱 기록에 시간/내용이 비어 있으면 덴트웹 값으로 채우고, '예정'인 덴트웹 연동 예약은 덴트웹의 시간/내용을 따라감
  * - 앱에 등록된 환자인데 그 날짜 기록이 없으면 덴트웹 예약을 추가
  * - 수동으로 정한 상태(내원/미이행)를 '예정'으로 되돌리지는 않는다.
  */
@@ -136,23 +136,38 @@ export const reconcileWithDentweb = (
       const record = history[index];
       const patch: Partial<AppointmentRecord> = {};
       if (visited && record.status === 'scheduled') patch.status = 'visited';
-      // 덴트웹에 실제로 있는 예약이므로 출처를 덴트웹으로 확정한다 (이후 취소 여부 판단의 근거).
-      if (record.source !== 'dentweb') patch.source = 'dentweb';
-      if (row.appointmentTime && record.time !== row.appointmentTime && (!record.time || record.source === 'dentweb')) {
+      // 아직 '예정'인 덴트웹 연동 예약은 덴트웹이 기준이므로 시간/내용이 바뀌었으면 따라간다.
+      // (진료가 끝난 기록은 당시 내용을 그대로 둔다.)
+      const followsDentweb = record.status === 'scheduled' && isDentwebOrigin(record, patient);
+      if (row.appointmentTime && record.time !== row.appointmentTime && (!record.time || followsDentweb)) {
         patch.time = row.appointmentTime;
       }
-      if (!record.content && content) patch.content = content;
+      if (content && record.content !== content && (!record.content || followsDentweb)) {
+        patch.content = content;
+      }
+      // 덴트웹에 실제로 있는 예약이므로 출처를 덴트웹으로 확정한다 (이후 취소 여부 판단의 근거).
+      if (record.source !== 'dentweb') patch.source = 'dentweb';
       if (Object.keys(patch).length > 0) {
         nextHistory = history.map((r, i) => (i === index ? { ...r, ...patch } : r));
       }
     }
 
+    // 현재 리콜(다음 예약)인 날이면 리콜 목록 등에서 쓰는 환자 정보도 같은 내용으로 맞춘다.
+    const synced = nextHistory.find(record => record.date === date);
+    const isCurrentRecall = !!synced && patient.nextRecallDate === date && synced.status === 'scheduled';
+    const recallFields = isCurrentRecall
+      ? { nextRecallContent: synced.content || '', nextRecallTime: synced.time }
+      : {};
+    const recallChanged = isCurrentRecall &&
+      (patient.nextRecallContent !== recallFields.nextRecallContent || patient.nextRecallTime !== recallFields.nextRecallTime);
+
     const lastVisit = visited && date > (patient.lastVisit || '') ? date : patient.lastVisit;
-    if (nextHistory === history && lastVisit === patient.lastVisit) return patient;
+    if (nextHistory === history && lastVisit === patient.lastVisit && !recallChanged) return patient;
 
     changed = true;
     return {
       ...patient,
+      ...recallFields,
       lastVisit,
       appointmentHistory: [...nextHistory].sort((a, b) => a.date.localeCompare(b.date))
     };
