@@ -136,6 +136,8 @@ export const reconcileWithDentweb = (
       const record = history[index];
       const patch: Partial<AppointmentRecord> = {};
       if (visited && record.status === 'scheduled') patch.status = 'visited';
+      // 덴트웹에 실제로 있는 예약이므로 출처를 덴트웹으로 확정한다 (이후 취소 여부 판단의 근거).
+      if (record.source !== 'dentweb') patch.source = 'dentweb';
       if (row.appointmentTime && record.time !== row.appointmentTime && (!record.time || record.source === 'dentweb')) {
         patch.time = row.appointmentTime;
       }
@@ -159,7 +161,56 @@ export const reconcileWithDentweb = (
   return { patients: reconciled, changed };
 };
 
-export const appointmentDisplayStatus =(record: AppointmentRecord): AppointmentStatus =>
+/**
+ * 덴트웹에서 온 예약으로 볼 수 있는가.
+ * 출처가 덴트웹이거나, (예전 데이터처럼 출처가 manual로 남았더라도) 시간이 있는 현재 리콜 예약이면 덴트웹 연동분으로 본다.
+ * 시간 없이 직접 입력한 예약은 덴트웹에 없어도 정상이므로 제외한다.
+ */
+const isDentwebOrigin = (record: AppointmentRecord, patient: Patient) =>
+  record.source === 'dentweb' || (!!record.time && patient.nextRecallDate === record.date);
+
+/**
+ * 해당 날짜의 덴트웹 예약 목록에 없는데 앱에는 '예정'으로 남아 있는 덴트웹 연동 예약(= 취소/변경되어 삭제된 예약)이 있는 환자.
+ * 덴트웹은 취소하면 행이 삭제되고, 진짜 노쇼는 이행현황 0으로 남는다.
+ * 그날 덴트웹 예약이 1건도 없으면(데이터가 없는 날, 조회 이상) 판단하지 않는다.
+ */
+export const findCancelledDentwebAppointments = (
+  patients: Patient[],
+  date: string,
+  rows: DentwebDayAppointment[]
+): Patient[] => {
+  if (rows.length === 0) return [];
+  const present = new Set(rows.map(row => row.chartNumber.trim()));
+  return patients.filter(patient =>
+    !present.has(patient.chartNumber.trim()) &&
+    getAppointmentHistory(patient).some(record =>
+      record.date === date && record.status === 'scheduled' && isDentwebOrigin(record, patient))
+  );
+};
+
+/**
+ * 취소된 예약을 이력에서 삭제한다.
+ * 그 날짜가 환자의 현재 리콜(nextRecallDate)이었다면 그대로 두면 이력이 다시 만들어지므로,
+ * 덴트웹에서 새로 조회한 다음 예약(upcoming)으로 바꾸고, 없으면 리콜을 비운다.
+ */
+export const removeCancelledAppointment = (
+  patient: Patient,
+  date: string,
+  upcoming?: { date: string; content: string; time: string } | null
+): Patient => {
+  const history = getAppointmentHistory(patient).filter(record =>
+    !(record.date === date && record.status === 'scheduled' && isDentwebOrigin(record, patient)));
+  const wasCurrent = patient.nextRecallDate === date;
+  const cleaned: Patient = wasCurrent
+    ? { ...patient, nextRecallDate: '', nextRecallContent: '', nextRecallTime: '', appointmentHistory: history }
+    : { ...patient, appointmentHistory: history };
+  if (wasCurrent && upcoming) {
+    return applyDentwebAppointment(cleaned, upcoming.date, upcoming.content, patient.lastVisit, upcoming.time);
+  }
+  return cleaned;
+};
+
+export const appointmentDisplayStatus = (record: AppointmentRecord): AppointmentStatus =>
   record.status === 'scheduled' && record.date < todayString() ? 'no-show' : record.status;
 
 export const appointmentTimeForDate = (patient: Patient, date: string): string =>

@@ -13,7 +13,15 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { AppointmentRecord, AppointmentStatus, Patient } from '../types';
-import { appointmentDisplayStatus, getAppointmentHistory, reconcileWithDentweb, timeToInputValue, updateAppointmentStatus } from '../services/appointmentService';
+import {
+  appointmentDisplayStatus,
+  findCancelledDentwebAppointments,
+  getAppointmentHistory,
+  reconcileWithDentweb,
+  removeCancelledAppointment,
+  timeToInputValue,
+  updateAppointmentStatus
+} from '../services/appointmentService';
 import { storageService } from '../services/storageService';
 import { dentwebService } from '../services/dentwebService';
 
@@ -38,6 +46,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ patients, onRefresh }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [syncState, setSyncState] = useState<DentwebSyncState>('idle');
+  const [cancelledCount, setCancelledCount] = useState(0);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -91,6 +100,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ patients, onRefresh }) => {
   useEffect(() => {
     if (!selectedDate) {
       setSyncState('idle');
+      setCancelledCount(0);
       return;
     }
 
@@ -99,14 +109,48 @@ const CalendarView: React.FC<CalendarViewProps> = ({ patients, onRefresh }) => {
     setSyncState('syncing');
     (async () => {
       const rows = await dentwebService.getAppointmentsForDate(dateStr);
+      let cancelled = 0;
       if (rows) {
-        const { patients: reconciled, changed } = reconcileWithDentweb(storageService.getPatients(), dateStr, rows);
+        let dirty = false;
+        let current = storageService.getPatients();
+        const { patients: reconciled, changed } = reconcileWithDentweb(current, dateStr, rows);
         if (changed) {
-          storageService.savePatients(reconciled);
+          current = reconciled;
+          dirty = true;
+        }
+
+        // 덴트웹에서 취소/변경되어 사라진 예약 정리. 현재 리콜이었던 환자는 덴트웹의 다음 예약을 다시 조회해 갱신하고,
+        // 조회에 실패하면 잘못 지우지 않도록 그대로 둔다.
+        const stale = findCancelledDentwebAppointments(current, dateStr, rows);
+        const cleanups = new Map<string, Parameters<typeof removeCancelledAppointment>[2]>();
+        for (const patient of stale) {
+          if (patient.nextRecallDate !== dateStr) {
+            cleanups.set(patient.id, null);
+            continue;
+          }
+          const lookup = await dentwebService.lookupUpcomingAppointment(patient.chartNumber);
+          if (lookup.status === 'found') {
+            cleanups.set(patient.id, { date: lookup.appointmentDate, content: lookup.content, time: lookup.appointmentTime });
+          } else if (lookup.status === 'none') {
+            cleanups.set(patient.id, null);
+          }
+        }
+        if (cleanups.size > 0) {
+          current = current.map(patient =>
+            cleanups.has(patient.id) ? removeCancelledAppointment(patient, dateStr, cleanups.get(patient.id)) : patient);
+          cancelled = cleanups.size;
+          dirty = true;
+        }
+
+        if (dirty) {
+          storageService.savePatients(current);
           onRefresh();
         }
       }
-      if (!closed) setSyncState(rows ? 'done' : 'failed');
+      if (!closed) {
+        setCancelledCount(cancelled);
+        setSyncState(rows ? 'done' : 'failed');
+      }
     })();
 
     return () => {
@@ -233,7 +277,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ patients, onRefresh }) => {
                       덴트웹 동기화 중...
                     </span>
                   )}
-                  {syncState === 'done' && <span className="text-xs font-bold text-emerald-600">덴트웹과 동기화됨</span>}
+                  {syncState === 'done' && (
+                    <span className="text-xs font-bold text-emerald-600">
+                      덴트웹과 동기화됨{cancelledCount > 0 ? ` · 취소된 예약 ${cancelledCount}건 정리` : ''}
+                    </span>
+                  )}
                   {syncState === 'failed' && (
                     <span className="text-xs font-bold text-amber-600">덴트웹 연결 실패 · 저장된 정보 표시 중</span>
                   )}
